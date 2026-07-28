@@ -10,8 +10,8 @@ dependencies:
     sdk: flutter
 
   # State Management & Dependency Injection
-  flutter_riverpod: ^2.5.0
-  riverpod_annotation: ^2.3.3
+  flutter_riverpod: ^2.4.9
+  riverpod_annotation: ^2.2.0
 
   # Audio & Hardware Interfaces
   record: 5.0.4                        # low-latency mic streaming (PCM 16-bit)
@@ -27,8 +27,8 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  riverpod_generator: ^2.3.9
-  build_runner: ^2.4.8
+  riverpod_generator: ^2.3.0
+  build_runner: ^2.4.0
 
 flutter:
   uses-material-design: true

@@ -1,37 +1,68 @@
-# ChordPrecision — Real-Time Guitar Tuner Mobile App
+# GuitarTuner — Professional Real-Time Tuner & Guitar Pro Tab Workspace
 
-ChordPrecision is a high-performance, real-time guitar tuner mobile app built with Flutter. Inspired by the GuitarTuna aesthetic, it features a clean single-screen UI layout, responsive spring-physics needle tracking, and a custom-designed interactive headstock selector.
+GuitarTuner is a high-performance, professional mobile application built with Flutter & Riverpod. It combines a **GuitarTuna-inspired real-time guitar tuner** with an **interactive Guitar Pro-style TAB player, live recorder, score sheet generator, and audio synthesizer**.
 
-Under the hood, the app features an optimized digital signal processing (DSP) pipeline that offloads computation from the main UI thread to prevent layout stutter or frame drops.
+Under the hood, the app features an optimized digital signal processing (DSP) pipeline that offloads computation from the main UI thread to a background Dart Isolate to guarantee a smooth 60 FPS rendering experience.
 
 ---
 
 ## 🌟 Key Features
 
-*   **GuitarTuna Visual Theme**: Deep charcoal/navy mesh grid background with neon status indicators.
-*   **Spring Physics Needle Gauge**: A centering circle needle meter utilizing Flutter's `SpringSimulation` to rotate fluidly instead of jumping abruptly between frequency updates.
-*   **Interactive 6-Peg Headstock**: Stylized acoustic peg interface. Pegs dynamically glow orange when active (recognizing sound) and neon green when perfectly in tune.
-*   **Auto & Manual Modes**: Automatically locks onto the closest string (E2, A2, D3, G3, B3, E4) or lets the user select a string manually to play reference tones.
-*   **Background Isolate Worker**: Offloads the YIN pitch-detection algorithm ($O(W \times N)$ operations) to a separate background Dart Isolate to guarantee 60 FPS main thread rendering.
-*   **Zero-Allocation Circular Ring Buffer**: Utilizes a circular float array (`FloatRingBuffer`) to stream PCM microphone data without generating heap memory garbage collection (GC) churn.
-*   **Tuning Dead Zone**: Locks the needle to exactly `0.0` cents when within a $\pm1.5$ cents threshold to filter out natural human string tension fluctuations.
+### 🎸 1. Real-Time Precision Guitar Tuner
+* **GuitarTuna Dark Theme**: Deep charcoal/navy mesh grid with high-contrast glowing status indicators.
+* **Spring Physics Needle Gauge**: Smooth centering dial utilizing Flutter's `SpringSimulation` to eliminate erratic needle jump.
+* **Interactive Headstock & LED Level Meter**: Stylized acoustic headstock interface coupled with a 12-dot hardware LED audio level meter showing real-time LUFS and dBFS sound intensity below the headstock.
+* **Isolate Worker & Ring Buffer**: YIN pitch-detection engine runs inside a dedicated background Dart Isolate fed by a zero-allocation circular `FloatRingBuffer`.
+* **Hardware Noise Gating**: Disables hardware AGC/echo cancellation artifacts to ensure pure tone readings with strict vocal gating and $\pm1.5$ cents dead-zone locking.
+
+### 🎼 2. Guitar Pro-Style Interactive Tab Workspace (`TabPlayerScreen`)
+* **Parchment White Score Sheet Canvas**:
+  * Crisp white sheet music background (`#FFFFFF`) with elevation paper drop shadows.
+  * Standard 5-line musical notation staff with a bold black treble clef (`🎼`).
+  * Traditional 6-line guitar TAB staff with vertical **T-A-B** logo, string labels (`e, B, G, D, A, E`), measure dividers (`1, 2, 3, 4`), and fret numbers inside white background cutouts.
+  * Iconic **Guitar Pro red playhead line & top pointer arrow** (`#EF4444`).
+* **15-Fret Rosewood Guitar Visualizer**:
+  * Detailed rosewood neck texture with 12-TET logarithmic fret wire scaling, bone nut (`fret 0`), inlay markers, and proportional steel string gauges.
+  * Glowing emerald LED finger position badges (`#10B981`) that illuminate dynamically on active notes during playback.
+* **Live Mic Recording & Pitch Transcription**:
+  * Tactile red glowing **Record Button** (`Icons.fiber_manual_record`), live timer readout (`REC 0.0s`), and a 16-bar animated audio waveform equalizer bar.
+  * Automatic note transcription converting raw microphone frequencies ($70\text{ Hz}$ to $400\text{ Hz}$) into exact 6-string guitar coordinates (strings 1–6, frets 0–24).
+* **BPM-Synchronized Playback Engine**:
+  * Smoothly sweeps the red playhead cursor across the score at exact BPM tempos, triggering PCM reference audio sample tones (`E4`, `B3`, `G3`, `D3`, `A2`, `E2`) sequentially while lighting up fretboard badges.
+* **Local Session Persistence & JSON Storage**:
+  * Automatic and manual JSON session saving (`recorded_tab_session.json`) via `path_provider` documents storage with **Save** (`Icons.save_alt`) and **Load** (`Icons.folder_open`) actions.
 
 ---
 
-## 📁 Project Directory Structure
+## 📁 Updated Project Directory Structure
 
 ```text
-lib/
-├── main.dart                          # App entry point & Riverpod ProviderScope setup
-├── services/
-│   ├── audio_service.dart             # Microphone permission handler & circular ring buffer stream
-│   └── pitch_engine.dart              # YIN pitch engine, cents math, noise gate, & EMA smoothing
-├── state/
-│   └── tuner_state.dart               # Riverpod StateNotifier managing isolate lifecycles & state
-└── views/
-    ├── tuner_screen.dart              # Main interface, custom grid painter, spring dial, & headstock
-test/
-└── tuner_test.dart                    # Complete unit test suite verifying DSP and buffer logic
+guitartuner2/
+├── android/                           # Modern Gradle Kotlin build configuration (v2 embedding)
+├── assets/
+│   ├── images/
+│   │   └── acoustic_headstock.jpg     # Acoustic guitar visual reference asset
+│   └── sounds/
+│       ├── A2.wav, B3.wav, D3.wav     # High-fidelity PCM guitar string audio samples
+│       ├── E2.wav, E4.wav, G3.wav     # Reference tuning & synthesizer audio samples
+│       └── in_tune_chime.wav          # In-tune audio completion chime
+├── lib/
+│   ├── main.dart                      # App entry point & Riverpod ProviderScope initialization
+│   ├── services/
+│   │   ├── audio_service.dart         # Microphone permission handler & circular ring buffer stream
+│   │   ├── pitch_detector.dart        # YIN Pitch detection algorithm implementation
+│   │   └── pitch_engine.dart          # YIN pitch engine, cents math, noise gate, & EMA smoothing
+│   ├── state/
+│   │   ├── tab_player_state.dart      # Tab player state model, transcription mapper & JSON storage
+│   │   └── tuner_state.dart           # Riverpod StateNotifier managing isolate lifecycles & state
+│   └── views/
+│       ├── tab_player_screen.dart     # Guitar Pro tab score, 15-fret visualizer & recorder controls
+│       └── tuner_screen.dart          # Main tuner interface, spring dial & LED sound meter
+├── test/
+│   ├── tuner_test.dart                # Complete DSP, FloatRingBuffer & JSON serialization unit tests
+│   └── widget_test.dart               # Flutter smoke and widget integration tests
+├── CHANGELOG.md                       # Comprehensive version changelog (v1.0.0, v1.0.1, v1.1.0)
+└── README.md                          # Project documentation and setup guide
 ```
 
 ---
@@ -39,49 +70,49 @@ test/
 ## 🚀 Setup & Build Instructions
 
 ### Prerequisites
-*   [Flutter SDK](https://docs.flutter.dev/get-started/install) (>= 3.0.0)
-*   Dart SDK (>= 3.0.0 < 4.0.0)
-*   A connected physical mobile device (Android/iOS) or emulator with microphone permissions enabled.
+* [Flutter SDK](https://docs.flutter.dev/get-started/install) (>= 3.0.0)
+* Dart SDK (>= 3.0.0 < 4.0.0)
+* Connected Android/iOS physical device or emulator with microphone access enabled.
 
 ### Local Installation
-1.  Clone the repository:
-    ```bash
-    git clone https://github.com/megafixbom/guitartuner2.git
-    cd guitartuner2
-    ```
-2.  Install dependencies:
-    ```bash
-    flutter pub get
-    ```
-3.  Analyze the code for syntax static checks:
-    ```bash
-    flutter analyze
-    ```
-4.  Run the test suite:
-    ```bash
-    flutter test
-    ```
-5.  Launch the app on your device:
-    ```bash
-    flutter run
-    ```
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/megafixbom/guitartuner2.git
+   cd guitartuner2
+   ```
+2. Install dependencies:
+   ```bash
+   flutter pub get
+   ```
+3. Analyze code for static quality checks:
+   ```bash
+   flutter analyze
+   ```
+4. Run automated test suite:
+   ```bash
+   flutter test
+   ```
+5. Launch the app:
+   ```bash
+   flutter run
+   ```
 
 ### Production Build
 To compile release binaries:
-*   **Android APK**: `flutter build apk --release`
-*   **iOS App Store Build**: `flutter build ipa --release`
+* **Android Release APK**: `flutter build apk --release --no-tree-shake-icons`
+* **Output Path**: `build/app/outputs/flutter-apk/app-release.apk`
 
 ---
 
 ## 🧪 Running Unit Tests
-A robust set of tests is located in `test/tuner_test.dart` validating:
-*   [FloatRingBuffer] index wrapping, FIFO queue behavior, and memory boundary wrapping.
-*   Logarithmic cents deviation conversions ($\pm50$ cents limits).
-*   The $\pm1.5$ cents dead-zone lock snapping to center.
-*   RMS noise floor thresholds (rejecting room hums under `0.008` RMS).
-*   Exponential Moving Average (EMA) smoothing over consecutive buffers.
+The unit test suite in `test/tuner_test.dart` verifies:
+* `FloatRingBuffer` circular queue boundaries and zero-allocation memory wrapping.
+* Logarithmic cents deviation calculations and $\pm1.5$ cents dead-zone locking.
+* PitchEngine YIN frequency detection and RMS noise floor gating.
+* Exponential Moving Average (EMA) smoothing.
+* `TabNote` and `TabMeasure` JSON serialization/deserialization.
 
-Run tests using:
+Run all tests using:
 ```bash
-flutter test test/tuner_test.dart
+flutter test
 ```

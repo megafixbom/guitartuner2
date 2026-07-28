@@ -14,7 +14,7 @@ dependencies:
   riverpod_annotation: ^2.3.3
 
   # Audio & Hardware Interfaces
-  record: ^5.1.2                       # low-latency mic streaming (PCM 16-bit)
+  record: 5.0.4                        # low-latency mic streaming (PCM 16-bit)
 
   audioplayers: ^6.0.0                 # reference tones & perfect-tune chime
   permission_handler: ^11.3.1          # runtime microphone permission handling

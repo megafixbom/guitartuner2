@@ -1,5 +1,3 @@
-import 'dart:math' as math;
-
 /// Holds the result of a pitch validation.
 class PitchDetectorResult {
   final double pitch;

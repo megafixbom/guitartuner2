@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:guitartuner/services/audio_service.dart';
 import 'package:guitartuner/services/pitch_engine.dart';
+import 'package:guitartuner/state/tab_player_state.dart';
 
 void main() {
   group('FloatRingBuffer Tests', () {
@@ -285,6 +286,30 @@ void main() {
 
       final double expectedSmoothed = (PitchEngine.emaAlpha * p2!) + ((1.0 - PitchEngine.emaAlpha) * p1!);
       expect(status2.smoothedFrequency, closeTo(expectedSmoothed, 1e-4));
+    });
+  });
+
+  group('TabPlayerNotifier Recording & Serialization Unit Tests', () {
+    test('TabNote and TabMeasure JSON Serialization', () {
+      const note = TabNote(stringIndex: 1, fret: 3, position: 2.5);
+      final jsonNote = note.toJson();
+      expect(jsonNote['stringIndex'], equals(1));
+      expect(jsonNote['fret'], equals(3));
+      expect(jsonNote['position'], equals(2.5));
+
+      final deserializedNote = TabNote.fromJson(jsonNote);
+      expect(deserializedNote.stringIndex, equals(1));
+      expect(deserializedNote.fret, equals(3));
+      expect(deserializedNote.position, equals(2.5));
+
+      final measure = TabMeasure(number: 1, notes: [note]);
+      final jsonMeasure = measure.toJson();
+      expect(jsonMeasure['number'], equals(1));
+      expect((jsonMeasure['notes'] as List).length, equals(1));
+
+      final deserializedMeasure = TabMeasure.fromJson(jsonMeasure);
+      expect(deserializedMeasure.number, equals(1));
+      expect(deserializedMeasure.notes.first.fret, equals(3));
     });
   });
 }

@@ -257,8 +257,7 @@ class TunerStateNotifier extends StateNotifier<TunerAppState> {
   Future<void> _playReferenceTone(GuitarString string) async {
     try {
       await _audioPlayer.stop();
-      // Production path for reference tones:
-      // await _audioPlayer.play(AssetSource('sounds/${string.noteName}${string.octave}.wav'));
+      await _audioPlayer.play(AssetSource('sounds/${string.noteName}${string.octave}.wav'));
     } catch (_) {}
   }
 
@@ -269,8 +268,7 @@ class TunerStateNotifier extends StateNotifier<TunerAppState> {
       if (canVibrate) {
         Vibration.vibrate(duration: 80, amplitude: 128);
       }
-      // Production path for lock chime:
-      // await _audioPlayer.play(AssetSource('sounds/in_tune_chime.wav'));
+      await _audioPlayer.play(AssetSource('sounds/in_tune_chime.wav'));
     } catch (_) {}
   }
 

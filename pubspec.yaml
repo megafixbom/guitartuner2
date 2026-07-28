@@ -10,19 +10,21 @@ dependencies:
     sdk: flutter
 
   # State Management & Dependency Injection
-  flutter_riverpod: ^2.4.9
-  riverpod_annotation: ^2.2.0
+  flutter_riverpod: ^2.5.1
+  riverpod_annotation: ^2.3.5
 
   # Audio & Hardware Interfaces
-  record: 5.0.4                        # low-latency mic streaming (PCM 16-bit)
+  record: 5.1.2                        # low-latency mic streaming (PCM 16-bit)
 
-  audioplayers: ^5.2.1                 # reference tones & perfect-tune chime
-  permission_handler: ^10.4.5          # runtime microphone permission handling
+  audioplayers: ^6.0.0                 # reference tones & perfect-tune chime
+  permission_handler: ^11.3.1          # runtime microphone permission handling
+  path_provider: ^2.1.2
+
 
   # Visuals & UI Design
-  google_fonts: ^5.1.0                 # modern typography (e.g., Outfit)
+  google_fonts: ^6.2.1                 # modern typography (e.g., Outfit)
   flutter_animate: ^4.5.0              # smooth animations & glows
-  vibration: ^1.8.4                    # haptic feedback triggers
+  vibration: ^2.0.0                    # haptic feedback triggers
 
 dev_dependencies:
   flutter_test:
@@ -30,5 +32,12 @@ dev_dependencies:
   riverpod_generator: ^2.3.0
   build_runner: ^2.4.0
 
+dependency_overrides:
+  win32: ^5.5.0
+  record_platform_interface: 1.1.0
+
 flutter:
   uses-material-design: true
+  assets:
+    - assets/images/acoustic_headstock.jpg
+    - assets/sounds/

@@ -100,9 +100,9 @@ class AudioService {
       encoder: AudioEncoder.pcm16bits,
       sampleRate: sampleRate,
       numChannels: 1, // Mono
-      autoGain: true,
-      echoCancel: true,
-      noiseSuppress: true,
+      autoGain: false,
+      echoCancel: false,
+      noiseSuppress: false,
     );
 
     try {

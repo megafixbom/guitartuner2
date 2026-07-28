@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../services/pitch_engine.dart';
 import '../state/tuner_state.dart';
+import 'tab_player_screen.dart';
 
 /// Renders a beautiful background grid matching GuitarTuna's interface
 class TuningGridBackground extends StatelessWidget {
@@ -43,7 +44,7 @@ class GridPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = const Color(0xFF1E293B).withOpacity(0.15)
+      ..color = const Color(0xFF1E293B).withValues(alpha: 0.15)
       ..strokeWidth = 1.0;
 
     const double gridSpacing = 40.0;
@@ -59,7 +60,7 @@ class GridPainter extends CustomPainter {
 
     // Draw central vertical axis indicator
     final axisPaint = Paint()
-      ..color = const Color(0xFF334155).withOpacity(0.3)
+      ..color = const Color(0xFF334155).withValues(alpha: 0.3)
       ..strokeWidth = 1.5;
     canvas.drawLine(
       Offset(size.width / 2, 0),
@@ -161,7 +162,7 @@ class _SpringCenteringMeterState extends State<SpringCenteringMeter>
       padding: const EdgeInsets.symmetric(horizontal: 20),
       decoration: BoxDecoration(
         color: widget.isPerfect && !widget.isSearching
-            ? const Color(0xFF10B981).withOpacity(0.06) // soft green flash background
+            ? const Color(0xFF10B981).withValues(alpha: 0.06) // soft green flash background
             : Colors.transparent,
       ),
       child: CustomPaint(
@@ -182,7 +183,7 @@ class _SpringCenteringMeterState extends State<SpringCenteringMeter>
                 width: 80,
                 height: 80,
                 decoration: BoxDecoration(
-                  color: const Color(0xFF0F172A).withOpacity(0.85),
+                  color: const Color(0xFF0F172A).withValues(alpha: 0.85),
                   shape: BoxShape.circle,
                   border: Border.all(
                     color: widget.isSearching ? const Color(0xFF475569) : accentColor,
@@ -190,7 +191,7 @@ class _SpringCenteringMeterState extends State<SpringCenteringMeter>
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: (widget.isSearching ? Colors.transparent : accentColor).withOpacity(0.3),
+                      color: (widget.isSearching ? Colors.transparent : accentColor).withValues(alpha: 0.3),
                       blurRadius: 20,
                       spreadRadius: 2,
                     ),
@@ -244,7 +245,7 @@ class MeterPainter extends CustomPainter {
 
     // Draw central base arc
     final arcPaint = Paint()
-      ..color = const Color(0xFF334155).withOpacity(0.3)
+      ..color = const Color(0xFF334155).withValues(alpha: 0.3)
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round
       ..strokeWidth = 6.0;
@@ -296,7 +297,7 @@ class MeterPainter extends CustomPainter {
       
       // Shadow glow for the needle
       final needleShadowPaint = Paint()
-        ..color = themeColor.withOpacity(0.4)
+        ..color = themeColor.withValues(alpha: 0.4)
         ..style = PaintingStyle.stroke
         ..strokeCap = StrokeCap.round
         ..strokeWidth = 8.0
@@ -364,10 +365,14 @@ class InteractiveHeadstock extends StatelessWidget {
       child: Stack(
         alignment: Alignment.center,
         children: [
-          // 1. Draw carbon/metallic headstock background vector
+          // 1. Photorealistic clean unbranded vertical acoustic headstock render
           Positioned.fill(
-            child: CustomPaint(
-              painter: HeadstockPainter(),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: Image.asset(
+                'assets/images/acoustic_headstock.jpg',
+                fit: BoxFit.contain,
+              ),
             ),
           ),
           
@@ -375,19 +380,19 @@ class InteractiveHeadstock extends StatelessWidget {
           // Left side pegs (Strings 6, 5, 4 - bottom to top)
           _buildPegButton(
             string: PitchEngine.standardGuitarTuning[5], // E2 (6)
-            bottomOffset: 60,
+            bottomOffset: 30,
             leftOffset: 12,
             isRightSide: false,
           ),
           _buildPegButton(
             string: PitchEngine.standardGuitarTuning[4], // A2 (5)
-            bottomOffset: 160,
+            bottomOffset: 140,
             leftOffset: 12,
             isRightSide: false,
           ),
           _buildPegButton(
             string: PitchEngine.standardGuitarTuning[3], // D3 (4)
-            bottomOffset: 260,
+            bottomOffset: 250,
             leftOffset: 12,
             isRightSide: false,
           ),
@@ -395,19 +400,19 @@ class InteractiveHeadstock extends StatelessWidget {
           // Right side pegs (Strings 3, 2, 1 - top to bottom)
           _buildPegButton(
             string: PitchEngine.standardGuitarTuning[2], // G3 (3)
-            bottomOffset: 260,
+            bottomOffset: 250,
             rightOffset: 12,
             isRightSide: true,
           ),
           _buildPegButton(
             string: PitchEngine.standardGuitarTuning[1], // B3 (2)
-            bottomOffset: 160,
+            bottomOffset: 140,
             rightOffset: 12,
             isRightSide: true,
           ),
           _buildPegButton(
             string: PitchEngine.standardGuitarTuning[0], // E4 (1)
-            bottomOffset: 60,
+            bottomOffset: 30,
             rightOffset: 12,
             isRightSide: true,
           ),
@@ -442,10 +447,10 @@ class InteractiveHeadstock extends StatelessWidget {
         onTap: () => onPegTapped(string),
         child: AnimatedContainer(
           duration: const duration200ms(),
-          width: 54,
-          height: 54,
+          width: 56,
+          height: 56,
           decoration: BoxDecoration(
-            color: isActive ? const Color(0xFF0F172A) : const Color(0xFF1E293B).withOpacity(0.6),
+            color: isActive ? const Color(0xFF0F172A) : const Color(0xFF1E293B).withValues(alpha: 0.8),
             shape: BoxShape.circle,
             border: Border.all(
               color: isActive ? glowColor : const Color(0xFF475569),
@@ -453,13 +458,33 @@ class InteractiveHeadstock extends StatelessWidget {
             ),
             boxShadow: isActive
                 ? [
+                    // Outer warm specular highlight glow onto surrounding mahogany wood
                     BoxShadow(
-                      color: glowColor.withOpacity(0.4),
-                      blurRadius: 12,
+                      color: glowColor.withValues(alpha: 0.6),
+                      blurRadius: 28,
+                      spreadRadius: 6,
+                    ),
+                    // Inner LED specular core reflection
+                    BoxShadow(
+                      color: glowColor.withValues(alpha: 0.9),
+                      blurRadius: 10,
                       spreadRadius: 1,
-                    )
+                    ),
+                    // 3D elevated drop shadow
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.7),
+                      blurRadius: 14,
+                      offset: const Offset(0, 6),
+                    ),
                   ]
-                : [],
+                : [
+                    // Subtle ambient shadow for inactive pegs
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.4),
+                      blurRadius: 8,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
           ),
           child: Center(
             child: Column(
@@ -478,7 +503,7 @@ class InteractiveHeadstock extends StatelessWidget {
                   style: GoogleFonts.outfit(
                     fontSize: 10,
                     fontWeight: FontWeight.w500,
-                    color: isActive ? glowColor.withOpacity(0.7) : const Color(0xFF64748B),
+                    color: isActive ? glowColor.withValues(alpha: 0.7) : const Color(0xFF64748B),
                   ),
                 ),
               ],
@@ -533,18 +558,19 @@ class HeadstockPainter extends CustomPainter {
     canvas.drawPath(path, rectPaint);
 
     // Draw thin elegant silver edge highlight
-    canvas.drawPath(
-      path,
-      Paint()
-        ..color = const Color(0xFF52525B).withOpacity(0.4)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.0,
-    );
+    canvas.drawPath(path, borderPaint..style = PaintingStyle.stroke..strokeWidth = 1.0);
 
     // Draw vertical strings going down the center
     final stringPaint = Paint()
-      ..color = const Color(0xFFE2E8F0).withOpacity(0.5)
+      ..color = const Color(0xFFE2E8F0).withValues(alpha: 0.5)
       ..strokeWidth = 1.5;
+    
+    // Draw guide center line
+    canvas.drawLine(
+      Offset(size.width / 2, 0),
+      Offset(size.width / 2, size.height),
+      stringPaint,
+    );
 
     // Draw decorative gold tuners core layout circles
     final tunerMetalPaint = Paint()
@@ -629,11 +655,24 @@ class _TunerScreenState extends ConsumerState<TunerScreen> with WidgetsBindingOb
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    IconButton(
-                      icon: const Icon(Icons.settings, color: Color(0xFF94A3B8)),
-                      onPressed: () {},
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
+                    Row(
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.music_note, color: Color(0xFF38BDF8)),
+                          tooltip: 'Tab Workspace',
+                          onPressed: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(builder: (_) => const TabPlayerScreen()),
+                            );
+                          },
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.settings, color: Color(0xFF94A3B8)),
+                          onPressed: () {},
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                        ),
+                      ],
                     ),
                     Text(
                       'TUNER',
@@ -652,8 +691,8 @@ class _TunerScreenState extends ConsumerState<TunerScreen> with WidgetsBindingOb
                         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                         decoration: BoxDecoration(
                           color: state.isAutoMode 
-                            ? const Color(0xFF10B981).withOpacity(0.12)
-                            : const Color(0xFF475569).withOpacity(0.2),
+                            ? const Color(0xFF10B981).withValues(alpha: 0.12)
+                            : const Color(0xFF475569).withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(
                             color: state.isAutoMode 
@@ -695,9 +734,9 @@ class _TunerScreenState extends ConsumerState<TunerScreen> with WidgetsBindingOb
                   margin: const EdgeInsets.symmetric(horizontal: 20),
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: Colors.redAccent.withOpacity(0.15),
+                    color: Colors.redAccent.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: Colors.redAccent.withOpacity(0.5)),
+                    border: Border.all(color: Colors.redAccent.withValues(alpha: 0.5)),
                   ),
                   child: Text(
                     state.errorMessage,
@@ -717,7 +756,7 @@ class _TunerScreenState extends ConsumerState<TunerScreen> with WidgetsBindingOb
 
               // Subtext detail read-out
               Padding(
-                padding: const EdgeInsets.symmetric(vertical: 10),
+                padding: const EdgeInsets.symmetric(vertical: 8),
                 child: Column(
                   children: [
                     Text(
@@ -743,22 +782,124 @@ class _TunerScreenState extends ConsumerState<TunerScreen> with WidgetsBindingOb
                 ),
               ),
 
-              const Spacer(),
-
-              // Guitar Headstock containing responsive peg nodes
-              InteractiveHeadstock(
-                activeString: state.activeString,
-                isPerfect: state.status.isPerfect,
-                isSearching: isSearching,
-                onPegTapped: (GuitarString string) {
-                  ref.read(tunerStateProvider.notifier).selectString(string);
-                },
+              Expanded(
+                child: Center(
+                  child: SingleChildScrollView(
+                    physics: const BouncingScrollPhysics(),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        InteractiveHeadstock(
+                          activeString: state.activeString,
+                          isPerfect: state.status.isPerfect,
+                          isSearching: isSearching,
+                          onPegTapped: (GuitarString string) {
+                            ref.read(tunerStateProvider.notifier).selectString(string);
+                          },
+                        ),
+                        const SizedBox(height: 16),
+                        // Hardware LED Dotted LUFS Sound Level Meter (Below headstock)
+                        _buildHardwareLedLufsMeter(state.status.lufs, state.status.dbFS),
+                        const SizedBox(height: 12),
+                      ],
+                    ),
+                  ),
+                ),
               ),
-
-              const Spacer(),
             ],
           ),
         ),
+      ),
+    );
+  }
+  /// Builds a hardware-style LED dotted sound level meter (Below headstock)
+  Widget _buildHardwareLedLufsMeter(double lufs, double dbFS) {
+    // Map LUFS (-60.0 to 0.0) onto 12 physical hardware LED dots
+    final double normalized = ((lufs + 60.0) / 60.0).clamp(0.0, 1.0);
+    final int activeDotCount = (normalized * 12).round();
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 36),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0F172A).withValues(alpha: 0.9),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFF1E293B), width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.5),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'SOUND LEVEL (LUFS)',
+                style: GoogleFonts.outfit(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.2,
+                  color: const Color(0xFF64748B),
+                ),
+              ),
+              Text(
+                '${lufs > -90.0 ? lufs.toStringAsFixed(1) : "-∞"} LUFS  (${dbFS > -90.0 ? dbFS.toStringAsFixed(1) : "-∞"} dB)',
+                style: GoogleFonts.outfit(
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                  color: const Color(0xFF38BDF8),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          // 12 Realistic Hardware LED Dotted Indicator Bar
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: List.generate(12, (index) {
+              final bool isDotActive = index < activeDotCount;
+              
+              // Color gradient for hardware LEDs: 8 Green, 2 Yellow/Orange, 2 Red
+              Color ledColor;
+              if (index < 8) {
+                ledColor = const Color(0xFF10B981); // Bright Green
+              } else if (index < 10) {
+                ledColor = const Color(0xFFF59E0B); // Amber / Orange
+              } else {
+                ledColor = const Color(0xFFEF4444); // Red (Clipping warning)
+              }
+
+              return AnimatedContainer(
+                duration: const Duration(milliseconds: 100),
+                width: 14,
+                height: 14,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: isDotActive ? ledColor : const Color(0xFF1E293B),
+                  border: Border.all(
+                    color: isDotActive ? ledColor : const Color(0xFF334155),
+                    width: 1.0,
+                  ),
+                  boxShadow: isDotActive
+                      ? [
+                          BoxShadow(
+                            color: ledColor.withValues(alpha: 0.8),
+                            blurRadius: 8,
+                            spreadRadius: 1,
+                          ),
+                        ]
+                      : [],
+                ),
+              );
+            }),
+          ),
+        ],
       ),
     );
   }

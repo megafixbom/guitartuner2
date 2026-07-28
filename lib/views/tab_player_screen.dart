@@ -43,15 +43,21 @@ class _TabPlayerScreenState extends ConsumerState<TabPlayerScreen>
 
   @override
   Widget build(BuildContext context) {
-    final tabState = ref.watch(tabPlayerProvider);
+    final isPlaying = ref.watch(tabPlayerProvider.select((s) => s.isPlaying));
+    final isLooping = ref.watch(tabPlayerProvider.select((s) => s.isLooping));
+    final isLiveMicMode = ref.watch(tabPlayerProvider.select((s) => s.isLiveMicMode));
+    final currentBpm = ref.watch(tabPlayerProvider.select((s) => s.currentBpm));
+    final isRecording = ref.watch(tabPlayerProvider.select((s) => s.isRecording));
+    final recordingDurationSeconds = ref.watch(tabPlayerProvider.select((s) => s.recordingDurationSeconds));
+    final waveformLevels = ref.watch(tabPlayerProvider.select((s) => s.waveformLevels));
 
-    final double durationSeconds = (16.0 / (tabState.currentBpm / 60.0));
+    final double durationSeconds = (16.0 / (currentBpm / 60.0));
     _playheadController.duration = Duration(milliseconds: (durationSeconds * 1000).round());
 
     // Sync playhead animation controller state
-    if (tabState.isPlaying && !_playheadController.isAnimating) {
+    if (isPlaying && !_playheadController.isAnimating) {
       _playheadController.repeat();
-    } else if (!tabState.isPlaying && _playheadController.isAnimating) {
+    } else if (!isPlaying && _playheadController.isAnimating) {
       _playheadController.stop();
     }
 
@@ -98,8 +104,8 @@ class _TabPlayerScreenState extends ConsumerState<TabPlayerScreen>
           ),
           IconButton(
             icon: Icon(
-              tabState.isLooping ? Icons.repeat : Icons.repeat_one,
-              color: tabState.isLooping ? const Color(0xFF10B981) : const Color(0xFF64748B),
+              isLooping ? Icons.repeat : Icons.repeat_one,
+              color: isLooping ? const Color(0xFF10B981) : const Color(0xFF64748B),
             ),
             onPressed: () {
               ref.read(tabPlayerProvider.notifier).toggleLoop();
@@ -135,29 +141,29 @@ class _TabPlayerScreenState extends ConsumerState<TabPlayerScreen>
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                       decoration: BoxDecoration(
-                        color: tabState.isLiveMicMode
+                        color: isLiveMicMode
                             ? const Color(0xFFF43F5E).withValues(alpha: 0.2)
                             : const Color(0xFF38BDF8).withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(20),
                         border: Border.all(
-                          color: tabState.isLiveMicMode ? const Color(0xFFF43F5E) : const Color(0xFF38BDF8),
+                          color: isLiveMicMode ? const Color(0xFFF43F5E) : const Color(0xFF38BDF8),
                         ),
                       ),
                       child: Row(
                         children: [
                           Icon(
-                            tabState.isLiveMicMode ? Icons.mic : Icons.graphic_eq,
-                            color: tabState.isLiveMicMode ? const Color(0xFFF43F5E) : const Color(0xFF38BDF8),
+                            isLiveMicMode ? Icons.mic : Icons.graphic_eq,
+                            color: isLiveMicMode ? const Color(0xFFF43F5E) : const Color(0xFF38BDF8),
                             size: 16,
                           ),
                           const SizedBox(width: 6),
                           Text(
-                            tabState.isLiveMicMode ? 'LIVE MIC' : 'PLAYBACK',
+                            isLiveMicMode ? 'LIVE MIC' : 'PLAYBACK',
                             style: GoogleFonts.outfit(
                               fontSize: 11,
                               fontWeight: FontWeight.bold,
                               letterSpacing: 1.0,
-                              color: tabState.isLiveMicMode ? const Color(0xFFF43F5E) : const Color(0xFF38BDF8),
+                              color: isLiveMicMode ? const Color(0xFFF43F5E) : const Color(0xFF38BDF8),
                             ),
                           ),
                         ],
@@ -171,7 +177,7 @@ class _TabPlayerScreenState extends ConsumerState<TabPlayerScreen>
                       const Icon(Icons.speed, color: Color(0xFF38BDF8), size: 18),
                       const SizedBox(width: 6),
                       Text(
-                        '${tabState.currentBpm.round()} BPM',
+                        '${currentBpm.round()} BPM',
                         style: GoogleFonts.outfit(
                           fontSize: 13,
                           fontWeight: FontWeight.bold,
@@ -194,10 +200,10 @@ class _TabPlayerScreenState extends ConsumerState<TabPlayerScreen>
                           duration: const Duration(milliseconds: 200),
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
-                            color: tabState.isRecording ? const Color(0xFFEF4444) : const Color(0xFF1E293B),
+                            color: isRecording ? const Color(0xFFEF4444) : const Color(0xFF1E293B),
                             shape: BoxShape.circle,
                             border: Border.all(color: const Color(0xFFEF4444), width: 2.0),
-                            boxShadow: tabState.isRecording
+                            boxShadow: isRecording
                                 ? [
                                     BoxShadow(
                                       color: const Color(0xFFEF4444).withValues(alpha: 0.8),
@@ -208,8 +214,8 @@ class _TabPlayerScreenState extends ConsumerState<TabPlayerScreen>
                                 : [],
                           ),
                           child: Icon(
-                            tabState.isRecording ? Icons.fiber_manual_record : Icons.fiber_manual_record_outlined,
-                            color: tabState.isRecording ? Colors.white : const Color(0xFFEF4444),
+                            isRecording ? Icons.fiber_manual_record : Icons.fiber_manual_record_outlined,
+                            color: isRecording ? Colors.white : const Color(0xFFEF4444),
                             size: 22,
                           ),
                         ),
@@ -229,7 +235,7 @@ class _TabPlayerScreenState extends ConsumerState<TabPlayerScreen>
                             shape: BoxShape.circle,
                           ),
                           child: Icon(
-                            tabState.isPlaying ? Icons.pause : Icons.play_arrow,
+                            isPlaying ? Icons.pause : Icons.play_arrow,
                             color: Colors.white,
                             size: 22,
                           ),
@@ -240,9 +246,9 @@ class _TabPlayerScreenState extends ConsumerState<TabPlayerScreen>
                       // Stop Button
                       InkWell(
                         onTap: () {
-                          if (tabState.isRecording) {
+                          if (isRecording) {
                             ref.read(tabPlayerProvider.notifier).toggleRecording();
-                          } else if (tabState.isPlaying) {
+                          } else if (isPlaying) {
                             ref.read(tabPlayerProvider.notifier).togglePlayPause();
                           }
                           _playheadController.reset();
@@ -270,7 +276,7 @@ class _TabPlayerScreenState extends ConsumerState<TabPlayerScreen>
             ),
 
             // Live Recording Timer & Audio Waveform Visualizer Indicator Bar
-            if (tabState.isRecording)
+            if (isRecording)
               Container(
                 margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -287,7 +293,7 @@ class _TabPlayerScreenState extends ConsumerState<TabPlayerScreen>
                         const Icon(Icons.fiber_manual_record, color: Color(0xFFEF4444), size: 14),
                         const SizedBox(width: 6),
                         Text(
-                          'REC  ${tabState.recordingDurationSeconds.toStringAsFixed(1)}s',
+                          'REC  ${recordingDurationSeconds.toStringAsFixed(1)}s',
                           style: GoogleFonts.outfit(
                             fontSize: 12,
                             fontWeight: FontWeight.bold,
@@ -299,8 +305,8 @@ class _TabPlayerScreenState extends ConsumerState<TabPlayerScreen>
                     // Live Waveform Visualizer Bars
                     Row(
                       children: List.generate(16, (i) {
-                        final double level = tabState.waveformLevels.length > i
-                            ? tabState.waveformLevels[i]
+                        final double level = waveformLevels.length > i
+                            ? waveformLevels[i]
                             : 0.2;
                         final double barHeight = (level * 20.0).clamp(4.0, 20.0);
                         return Container(
@@ -335,12 +341,18 @@ class _TabPlayerScreenState extends ConsumerState<TabPlayerScreen>
                     ),
                   ],
                 ),
-                child: CustomPaint(
-                  painter: TabNotationPainter(
-                    measures: tabState.measures,
-                    playheadPosition: tabState.playheadPosition,
-                  ),
-                  child: Container(),
+                child: Consumer(
+                  builder: (context, ref, child) {
+                    final measures = ref.watch(tabPlayerProvider.select((s) => s.measures));
+                    final playheadPosition = ref.watch(tabPlayerProvider.select((s) => s.playheadPosition));
+                    return CustomPaint(
+                      painter: TabNotationPainter(
+                        measures: measures,
+                        playheadPosition: playheadPosition,
+                      ),
+                      child: Container(),
+                    );
+                  }
                 ),
               ),
             ),
@@ -369,12 +381,18 @@ class _TabPlayerScreenState extends ConsumerState<TabPlayerScreen>
                   ),
                   const SizedBox(height: 8),
                   Expanded(
-                    child: CustomPaint(
-                      painter: FretboardPainter(
-                        playheadPosition: tabState.playheadPosition,
-                        measures: tabState.measures,
-                      ),
-                      child: Container(),
+                    child: Consumer(
+                      builder: (context, ref, child) {
+                        final measures = ref.watch(tabPlayerProvider.select((s) => s.measures));
+                        final playheadPosition = ref.watch(tabPlayerProvider.select((s) => s.playheadPosition));
+                        return CustomPaint(
+                          painter: FretboardPainter(
+                            playheadPosition: playheadPosition,
+                            measures: measures,
+                          ),
+                          child: Container(),
+                        );
+                      }
                     ),
                   ),
                 ],
@@ -512,7 +530,7 @@ class TabNotationPainter extends CustomPainter {
 
     for (var measure in measures) {
       for (var note in measure.notes) {
-        final double noteX = startX + (note.position * (measureWidth / 4)) + 18;
+        final double noteX = startX + (note.position * (measureWidth / 4.0));
         
         // TAB Fret Position (White background cutout behind fret number)
         final double tabY = tabTopY + ((note.stringIndex - 1) * tabSpacing);

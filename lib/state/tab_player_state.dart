@@ -119,32 +119,126 @@ class TabPlayerNotifier extends StateNotifier<TabPlayerState> {
           isLiveMicMode: false,
         ));
 
+  final AudioPlayer _synthAudioPlayer = AudioPlayer();
+  final Set<double> _triggeredBeatPositions = {};
+  final List<double> _recordedFrequencyBuffer = [];
+  double _lastQuantizedPos = -1.0;
+
   void toggleLiveMicMode() {
-    state = state.copyWith(isLiveMicMode: !state.isLiveMicMode);
+    final bool newLiveMic = !state.isLiveMicMode;
+    if (newLiveMic) {
+      _synthAudioPlayer.stop();
+    }
+    state = state.copyWith(
+      isLiveMicMode: newLiveMic,
+      isRecording: newLiveMic ? false : state.isRecording,
+      isPlaying: newLiveMic ? false : state.isPlaying,
+    );
   }
 
-  final List<double> _recordedFrequencyBuffer = [];
-
+  /// 1. THE INPUT STREAM & CAPTURE FLOW
   void recordRawFrequencySample(double frequency) {
-    if (state.isRecording && frequency > 70.0 && frequency < 400.0) {
+    if (frequency < 70.0 || frequency > 400.0) return;
+
+    if (state.isRecording) {
       _recordedFrequencyBuffer.add(frequency);
+    } else if (state.isLiveMicMode) {
+      _processLivePitchSample(frequency);
     }
+  }
+
+  void _processLivePitchSample(double frequency) {
+    // Quantize playhead timing to nearest 16th note subdivision (0.25 beat)
+    final double rawPos = state.playheadPosition;
+    final double quantizedPos = (rawPos * 4.0).round() / 4.0;
+
+    // Debounce duplicate updates at identical 16th note subdivision slot
+    if ((quantizedPos - _lastQuantizedPos).abs() < 0.01) return;
+
+    final TabNote? mappedNote = _solveGuitarCoordinate(frequency, quantizedPos);
+    if (mappedNote != null) {
+      _lastQuantizedPos = quantizedPos;
+      _appendOrUpdateNote(mappedNote);
+    }
+  }
+
+  /// 2. THE TABLATURE MAPPING & RENDERING FLOW
+  /// Maps frequency to optimal 6-string guitar coordinate (String 1..6, Fret 0..24)
+  TabNote? _solveGuitarCoordinate(double frequency, double position) {
+    // Standard Guitar String Base Frequencies (String 1 High E: 329.63Hz, String 6 Low E: 82.41Hz)
+    final stringBaseHz = [329.63, 246.94, 196.00, 146.83, 110.00, 82.41];
+    
+    int bestStringIndex = 6;
+    int bestFret = 0;
+    double minCentsDiff = double.infinity;
+    double minFretPenalty = double.infinity;
+
+    for (int s = 0; s < 6; s++) {
+      final double baseHz = stringBaseHz[s];
+      final double fretCalc = 12.0 * (math.log(frequency / baseHz) / math.ln2);
+      final int fretRounded = fretCalc.round();
+
+      if (fretRounded >= 0 && fretRounded <= 24) {
+        final double exactFretHz = baseHz * math.pow(2.0, fretRounded / 12.0);
+        final double centsDiff = (1200.0 * (math.log(frequency / exactFretHz) / math.ln2)).abs();
+
+        // Penalty score favoring lower/comfortable fret positions (frets 0..12)
+        final double fretPenalty = centsDiff + (fretRounded * 0.5);
+
+        if (fretPenalty < minFretPenalty) {
+          minFretPenalty = fretPenalty;
+          minCentsDiff = centsDiff;
+          bestStringIndex = s + 1; // 1 to 6
+          bestFret = fretRounded;
+        }
+      }
+    }
+
+    if (minCentsDiff < 45.0) {
+      return TabNote(stringIndex: bestStringIndex, fret: bestFret, position: position);
+    }
+    return null;
+  }
+
+  void _appendOrUpdateNote(TabNote newNote) {
+    final updatedMeasures = List<TabMeasure>.from(state.measures);
+    if (updatedMeasures.isEmpty) return;
+
+    final int targetMeasureIndex = (newNote.position / 4.0).floor().clamp(0, updatedMeasures.length - 1);
+    final currentNotes = List<TabNote>.from(updatedMeasures[targetMeasureIndex].notes);
+
+    // Replace note at identical quantized 16th note position or append
+    currentNotes.removeWhere((n) => (n.position - newNote.position).abs() < 0.125);
+    currentNotes.add(newNote);
+
+    updatedMeasures[targetMeasureIndex] = TabMeasure(
+      number: updatedMeasures[targetMeasureIndex].number,
+      notes: currentNotes,
+    );
+
+    state = state.copyWith(measures: updatedMeasures);
+  }
+
+  void recordTranscribedPitch(double frequency) {
+    recordRawFrequencySample(frequency);
   }
 
   void toggleRecording() {
     final bool newRecordingState = !state.isRecording;
     if (newRecordingState) {
       _recordedFrequencyBuffer.clear();
+      _lastQuantizedPos = -1.0;
+      _synthAudioPlayer.stop();
       state = state.copyWith(
         isRecording: true,
         isPlaying: true,
-        isLiveMicMode: true,
+        isLiveMicMode: false,
         recordingDurationSeconds: 0.0,
         waveformLevels: [],
       );
     } else {
-      // Upon hitting "Stop Recording", instantly process recorded frequency list through mapping algorithm
       _processBatchRecordedFrequencies();
+      _synthAudioPlayer.stop();
       state = state.copyWith(
         isRecording: false,
         isPlaying: false,
@@ -155,42 +249,21 @@ class TabPlayerNotifier extends StateNotifier<TabPlayerState> {
   void _processBatchRecordedFrequencies() {
     if (_recordedFrequencyBuffer.isEmpty) return;
 
-    final stringBaseHz = [329.63, 246.94, 196.00, 146.83, 110.00, 82.41];
     final List<TabNote> batchNotes = [];
-
-    // Step through recorded frequencies and map into string (1-6) and fret (0-24) coordinates
     final double beatStep = 16.0 / math.max(1, _recordedFrequencyBuffer.length);
+
     for (int i = 0; i < _recordedFrequencyBuffer.length; i++) {
       final double frequency = _recordedFrequencyBuffer[i];
-      int bestStringIndex = 6;
-      int bestFret = 0;
-      double minCentsDiff = double.infinity;
+      final double rawPos = i * beatStep;
+      final double quantizedPos = ((rawPos * 4.0).round() / 4.0).clamp(0.0, 15.75);
 
-      for (int s = 0; s < 6; s++) {
-        final double baseHz = stringBaseHz[s];
-        final double fretCalc = 12.0 * (math.log(frequency / baseHz) / math.ln2);
-        final int fretRounded = fretCalc.round();
-
-        if (fretRounded >= 0 && fretRounded <= 24) {
-          final double exactFretHz = baseHz * math.pow(2.0, fretRounded / 12.0);
-          final double centsDiff = (1200.0 * (math.log(frequency / exactFretHz) / math.ln2)).abs();
-
-          if (centsDiff < minCentsDiff) {
-            minCentsDiff = centsDiff;
-            bestStringIndex = s + 1; // 1 to 6
-            bestFret = fretRounded;
-          }
-        }
-      }
-
-      if (minCentsDiff < 45.0) {
-        final double notePos = (i * beatStep).clamp(0.0, 15.5);
-        batchNotes.add(TabNote(stringIndex: bestStringIndex, fret: bestFret, position: notePos));
+      final note = _solveGuitarCoordinate(frequency, quantizedPos);
+      if (note != null) {
+        batchNotes.add(note);
       }
     }
 
     if (batchNotes.isNotEmpty) {
-      // Quantize and group into 4 measures
       final updatedMeasures = [
         TabMeasure(number: 1, notes: batchNotes.where((n) => n.position < 4.0).toList()),
         TabMeasure(number: 2, notes: batchNotes.where((n) => n.position >= 4.0 && n.position < 8.0).toList()),
@@ -202,7 +275,7 @@ class TabPlayerNotifier extends StateNotifier<TabPlayerState> {
     }
   }
 
-  /// Serializes the current tab session measures & notes into JSON and saves to local device storage
+  /// 3. PERSISTENCE & PLAYBACK SYNCHRONIZATION FLOW
   Future<void> saveSessionToDevice() async {
     try {
       final dir = await getApplicationDocumentsDirectory();
@@ -218,7 +291,6 @@ class TabPlayerNotifier extends StateNotifier<TabPlayerState> {
     } catch (_) {}
   }
 
-  /// Loads a serialized JSON tab session from local device storage
   Future<bool> loadSessionFromDevice() async {
     try {
       final dir = await getApplicationDocumentsDirectory();
@@ -256,15 +328,20 @@ class TabPlayerNotifier extends StateNotifier<TabPlayerState> {
     }
   }
 
-  final AudioPlayer _synthAudioPlayer = AudioPlayer();
-  final Set<double> _triggeredBeatPositions = {};
-
   void togglePlayPause() {
     final bool newIsPlaying = !state.isPlaying;
     if (!newIsPlaying) {
       _triggeredBeatPositions.clear();
+      _synthAudioPlayer.stop();
+    } else if (state.isLiveMicMode) {
+      // Audio playback and Live Mic can conflict, ensure live mic is disabled
+      state = state.copyWith(isLiveMicMode: false);
     }
-    state = state.copyWith(isPlaying: newIsPlaying);
+    
+    state = state.copyWith(
+      isPlaying: newIsPlaying,
+      isLiveMicMode: newIsPlaying ? false : state.isLiveMicMode,
+    );
   }
 
   void setBpm(double bpm) {
@@ -275,17 +352,20 @@ class TabPlayerNotifier extends StateNotifier<TabPlayerState> {
     if (position < state.playheadPosition) {
       _triggeredBeatPositions.clear();
     }
-    
-    // Only update state if position has shifted by at least 0.02 beats to reduce UI rebuild churn
-    if ((position - state.playheadPosition).abs() >= 0.02) {
-      state = state.copyWith(playheadPosition: position);
+
+    // Clamp the position to prevent out-of-bounds indexing
+    final clampedPosition = position.clamp(0.0, 16.0);
+
+    // Debounce widget rebuilds by setting threshold to 0.05 beats
+    if ((clampedPosition - state.playheadPosition).abs() >= 0.05) {
+      state = state.copyWith(playheadPosition: clampedPosition);
     }
-    
-    // Trigger synth note audio as playhead advances across beat positions
+
+    // Synchronous playback trigger check as playhead crosses beat markers
     if (state.isPlaying) {
       for (var measure in state.measures) {
         for (var note in measure.notes) {
-          if ((position - note.position).abs() < 0.25 && !_triggeredBeatPositions.contains(note.position)) {
+          if ((position - note.position).abs() < 0.20 && !_triggeredBeatPositions.contains(note.position)) {
             _triggeredBeatPositions.add(note.position);
             _playNoteSynthAudio(note);
           }
@@ -294,14 +374,7 @@ class TabPlayerNotifier extends StateNotifier<TabPlayerState> {
     }
   }
 
-  @override
-  void dispose() {
-    _synthAudioPlayer.dispose();
-    super.dispose();
-  }
-
   void _playNoteSynthAudio(TabNote note) async {
-    // Map stringIndex (1..6) to corresponding reference sound asset name
     final stringNames = ['E4', 'B3', 'G3', 'D3', 'A2', 'E2'];
     if (note.stringIndex >= 1 && note.stringIndex <= 6) {
       final String soundFile = stringNames[note.stringIndex - 1];
@@ -311,61 +384,14 @@ class TabPlayerNotifier extends StateNotifier<TabPlayerState> {
     }
   }
 
-  /// Converts a detected fundamental frequency (Hz) into exact Guitar String & Fret index (0-24)
-  void recordTranscribedPitch(double frequency) {
-    if (!state.isLiveMicMode || frequency < 70.0 || frequency > 400.0) return;
-
-    // Guitar string fundamental target frequencies (E4: 329.63Hz, B3: 246.94Hz, G3: 196Hz, D3: 146.83Hz, A2: 110Hz, E2: 82.41Hz)
-    final stringBaseHz = [329.63, 246.94, 196.00, 146.83, 110.00, 82.41];
-
-    int bestStringIndex = 6;
-    int bestFret = 0;
-    double minCentsDiff = double.infinity;
-
-    for (int s = 0; s < 6; s++) {
-      final double baseHz = stringBaseHz[s];
-      // Calculate fret position for frequency: fret = 12 * log2(F / Base)
-      final double fretCalc = 12.0 * (math.log(frequency / baseHz) / math.ln2);
-      final int fretRounded = fretCalc.round();
-
-      if (fretRounded >= 0 && fretRounded <= 15) {
-        final double exactFretHz = baseHz * math.pow(2.0, fretRounded / 12.0);
-        final double centsDiff = (1200.0 * (math.log(frequency / exactFretHz) / math.ln2)).abs();
-
-        if (centsDiff < minCentsDiff) {
-          minCentsDiff = centsDiff;
-          bestStringIndex = s + 1; // 1 to 6
-          bestFret = fretRounded;
-        }
-      }
-    }
-
-    // Append transcribed note to current measure in live recording mode
-    if (minCentsDiff < 45.0) {
-      final double currentPos = state.playheadPosition;
-      final newNote = TabNote(stringIndex: bestStringIndex, fret: bestFret, position: currentPos);
-
-      final updatedMeasures = List<TabMeasure>.from(state.measures);
-      if (updatedMeasures.isNotEmpty) {
-        final lastMeasureIndex = updatedMeasures.length - 1;
-        final currentNotes = List<TabNote>.from(updatedMeasures[lastMeasureIndex].notes);
-
-        // Replace or append note at current beat position
-        currentNotes.removeWhere((n) => (n.position - currentPos).abs() < 0.35);
-        currentNotes.add(newNote);
-
-        updatedMeasures[lastMeasureIndex] = TabMeasure(
-          number: updatedMeasures[lastMeasureIndex].number,
-          notes: currentNotes,
-        );
-
-        state = state.copyWith(measures: updatedMeasures);
-      }
-    }
-  }
-
   void toggleLoop() {
     state = state.copyWith(isLooping: !state.isLooping);
+  }
+
+  @override
+  void dispose() {
+    _synthAudioPlayer.dispose();
+    super.dispose();
   }
 
   static List<TabMeasure> _generateSampleTab() {

@@ -17,7 +17,7 @@ dependencies:
   record: 5.0.4                        # low-latency mic streaming (PCM 16-bit)
 
   audioplayers: ^6.0.0                 # reference tones & perfect-tune chime
-  permission_handler: ^11.3.1          # runtime microphone permission handling
+  permission_handler: ^10.4.5          # runtime microphone permission handling
 
   # Visuals & UI Design
   google_fonts: ^5.1.0                 # modern typography (e.g., Outfit)

@@ -20,7 +20,7 @@ dependencies:
   permission_handler: ^11.3.1          # runtime microphone permission handling
 
   # Visuals & UI Design
-  google_fonts: ^6.2.1                 # modern typography (e.g., Outfit)
+  google_fonts: ^5.1.0                 # modern typography (e.g., Outfit)
   flutter_animate: ^4.5.0              # smooth animations & glows
   vibration: ^1.8.4                    # haptic feedback triggers
 

@@ -1,5 +1,5 @@
 import 'dart:math' as math;
-import 'package:pitch_detector_dart/pitch_detector_dart.dart';
+import 'pitch_detector.dart';
 
 /// Represents a single guitar/instrument string's tuning details
 class GuitarString {

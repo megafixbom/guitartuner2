@@ -16,21 +16,31 @@ Under the hood, the app features an optimized digital signal processing (DSP) pi
 * **Hardware Noise Gating**: Disables hardware AGC/echo cancellation artifacts to ensure pure tone readings with strict vocal gating and $\pm3.5$ cents dead-zone locking with a 2.5-second in-tune hold latch for smooth user feedback.
 
 ### 🎼 2. Guitar Pro-Style Interactive Tab Workspace (`TabPlayerScreen`)
-* **Parchment White Score Sheet Canvas**:
-  * Crisp white sheet music background (`#FFFFFF`) with elevation paper drop shadows.
-  * Standard 5-line musical notation staff with properly ordered string mapping (high strings near top of staff, low strings lower).
-  * Traditional 6-line guitar TAB staff with vertical **T-A-B** logo, string labels (`e, B, G, D, A, E`), and dynamically computed measure dividers.
-  * Fret numbers inside white background cutouts with iconic **Guitar Pro red playhead line & top pointer arrow** (`#EF4444`).
+* **Professional Parchment Score Sheet**:
+  * Warm parchment-toned canvas (`#FAF8F0`) with authentic paper feel and subtle drop shadows.
+  * Standard 5-line musical notation staff with duration-aware note engraving (open heads for whole/half, filled for quarters, flagged for eighth/sixteenth).
+  * Traditional 6-line guitar TAB staff with vertical **T-A-B** logo, string labels (`e, B, G, D, A, E`), dynamically computed measure dividers, and beat subdivision ticks.
+  * Fret numbers inside white cutouts with **Guitar Pro red playhead line & top pointer arrow** (`#EF4444`).
+* **Manual Note Entry & Editing**:
+  * Tap on the score canvas to add notes at quantized 16th-note positions with the currently selected note duration.
+  * Tap on the fretboard visualizer to place notes by string and fret position.
+  * Note duration selector cycling through whole, half, quarter, eighth, and sixteenth notes.
 * **15-Fret Rosewood Guitar Visualizer**:
-  * Detailed rosewood neck texture with 12-TET logarithmic fret wire scaling, bone nut (`fret 0`), inlay markers, and proportional steel string gauges.
-  * Glowing emerald LED finger position badges (`#10B981`) that illuminate dynamically on active notes during playback.
+  * Detailed rosewood neck texture with 12-TET logarithmic fret wire scaling, bone nut, inlay markers (single + double at 12th), and proportional steel string gauges.
+  * String labels (`e, B, G, D, A, E`) on nut area and fret number markers along the bottom.
+  * Glowing emerald LED finger position badges (`#10B981`) that illuminate during playback for the full note duration span.
+* **Tap Tempo & BPM Control**:
+  * Tap the BPM readout to set tempo by rhythm; calculates rolling average from last 8 taps.
+  * Fine-tune with +/- 1 BPM buttons. Range: 40-280 BPM.
 * **Live Mic Recording & Pitch Transcription**:
-  * Tactile red glowing **Record Button** (`Icons.fiber_manual_record`), live timer readout (`REC 0.0s`) with a 100ms-resolution recording clock, and a 16-bar animated audio waveform equalizer bar.
-  * Automatic note transcription converting raw microphone frequencies ($70\text{ Hz}$ to $400\text{ Hz}$) into exact 6-string guitar coordinates (strings 1–6, frets 0–24), with proper beat-mapping scaled to the actual recording duration.
+  * Tactile red glowing **Record Button** with pulsing animated indicator, live timer readout with 100ms clock, and a 12-bar waveform visualizer.
+  * Automatic note transcription with duration inference from temporal gaps between detected frequencies.
+  * Batch recording processes all samples at stop and generates measures dynamically.
 * **BPM-Synchronized Playback Engine**:
-  * Smoothly sweeps the red playhead cursor across the score at exact BPM tempos, triggering PCM reference audio sample tones (`E4`, `B3`, `G3`, `D3`, `A2`, `E2`) sequentially while lighting up fretboard badges.
+  * Smoothly sweeps the red playhead cursor across the score at exact BPM tempos, triggering PCM reference audio samples (`E4`, `B3`, `G3`, `D3`, `A2`, `E2`) while lighting up fretboard badges with duration-aware highlighting.
 * **Local Session Persistence & JSON Storage**:
-  * Automatic and manual JSON session saving (`recorded_tab_session.json`) via `path_provider` documents storage with **Save** (`Icons.save_alt`) and **Load** (`Icons.folder_open`) actions.
+  * Automatic and manual JSON session saving (`recorded_tab_session.json`) via `path_provider` with full note duration serialization.
+* **Clear Tab**: Reset the entire tab to empty measures with confirmation dialog.
 
 ---
 

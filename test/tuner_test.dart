@@ -296,11 +296,13 @@ void main() {
       expect(jsonNote['stringIndex'], equals(1));
       expect(jsonNote['fret'], equals(3));
       expect(jsonNote['position'], equals(2.5));
+      expect(jsonNote['duration'], equals('4'));
 
       final deserializedNote = TabNote.fromJson(jsonNote);
       expect(deserializedNote.stringIndex, equals(1));
       expect(deserializedNote.fret, equals(3));
       expect(deserializedNote.position, equals(2.5));
+      expect(deserializedNote.duration, equals(NoteDuration.quarter));
 
       final measure = TabMeasure(number: 1, notes: [note]);
       final jsonMeasure = measure.toJson();

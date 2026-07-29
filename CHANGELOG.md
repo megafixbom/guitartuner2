@@ -4,6 +4,32 @@ All notable changes to the GuitarTuner app are documented in this file.
 
 ---
 
+## [1.2.0] - 2026-07-29
+
+### Professional Tablature Workspace Overhaul
+- **Note Duration System**: Added `NoteDuration` enum (whole, half, quarter, eighth, sixteenth) with beat value calculation. `TabNote` now tracks duration per note. Duration-aware playback highlights notes for their full beat span on the fretboard.
+- **Duration-Based Notation Engraving**: `TabNotationPainter` now renders musically correct note heads: open ovals for whole/half notes, filled circles for quarters, flagged stems for eighth/sixteenth notes. Beat subdivision tick marks added to TAB staff.
+- **Manual Note Entry**: Tap directly on the score canvas to add notes at quantized 16th-note positions. Tap on the fretboard visualizer to add notes by string/fret position at the current playhead beat.
+- **Tap Tempo BPM**: Tap the BPM display to set tempo by tapping rhythm. Calculates rolling average from last 8 taps. BPM +/- 1 buttons for fine adjustment.
+- **Note Duration Selector**: Cycle through note durations (1/4, 1/8, 1/16, etc.) via the duration chip button. All manually added notes use the selected duration.
+- **Clear Tab Function**: Delete all notes and reset to empty measures with confirmation dialog.
+- **UI Professional Redesign**:
+  - Compact single-row toolbar with mode pill, BPM control, duration selector, and transport buttons.
+  - Pulsing red recording dot with animated transparency.
+  - Parchment-toned score canvas (`#FAF8F0`) with authentic paper texture feel.
+  - Fretboard now includes string labels (e, B, G, D, A, E) and fret number markers.
+  - Refined color palette using slate/cyan/green/red accent system on deep dark background.
+  - AppBar consolidated with save/load/loop/clear actions and back navigation.
+- **Recording Duration Inference**: Batch recording now infers note durations from the temporal gaps between consecutive detected frequencies.
+
+### State Layer Improvements
+- `TabPlayerState` now includes `selectedDuration` and `tapTempoHistory` fields.
+- Added methods: `addNoteManually()`, `clearTab()`, `registerTapTempo()`, `cycleSelectedDuration()`, `setSelectedDuration()`, `deleteNoteAt()`.
+- `TabNote` serialization includes `duration` field for session persistence.
+- Test updated with `NoteDuration` serialization assertion.
+
+---
+
 ## [1.1.1] - 2026-07-29
 
 ### Guitar Tuner Fixes

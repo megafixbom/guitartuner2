@@ -7,29 +7,72 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 
+enum NoteDuration {
+  whole,
+  half,
+  quarter,
+  eighth,
+  sixteenth;
+
+  double get beatValue => switch (this) {
+        NoteDuration.whole => 4.0,
+        NoteDuration.half => 2.0,
+        NoteDuration.quarter => 1.0,
+        NoteDuration.eighth => 0.5,
+        NoteDuration.sixteenth => 0.25,
+      };
+
+  String get label => switch (this) {
+        NoteDuration.whole => '1',
+        NoteDuration.half => '2',
+        NoteDuration.quarter => '4',
+        NoteDuration.eighth => '8',
+        NoteDuration.sixteenth => '16',
+      };
+
+  static NoteDuration fromBeatSpan(double beats) {
+    if (beats >= 3.5) return NoteDuration.whole;
+    if (beats >= 1.5) return NoteDuration.half;
+    if (beats >= 0.7) return NoteDuration.quarter;
+    if (beats >= 0.35) return NoteDuration.eighth;
+    return NoteDuration.sixteenth;
+  }
+}
+
 /// Represents a single note on a guitar tab staff (fret position & string index)
 class TabNote {
   final int stringIndex; // 1 to 6 (1 is High E, 6 is Low E)
   final int fret;        // 0 (open) to 24
   final double position; // Beat position in track timeline
+  final NoteDuration duration; // Note duration type
 
   const TabNote({
     required this.stringIndex,
     required this.fret,
     required this.position,
+    this.duration = NoteDuration.quarter,
   });
 
   Map<String, dynamic> toJson() => {
         'stringIndex': stringIndex,
         'fret': fret,
         'position': position,
+        'duration': duration.label,
       };
 
   factory TabNote.fromJson(Map<String, dynamic> json) => TabNote(
         stringIndex: json['stringIndex'] as int,
         fret: json['fret'] as int,
         position: (json['position'] as num).toDouble(),
+        duration: _parseDuration((json['duration'] as String?) ?? '4'),
       );
+
+  static NoteDuration _parseDuration(String label) {
+    return NoteDuration.values.firstWhere(
+      (d) => d.label == label,
+      orElse: () => NoteDuration.quarter,
+    );
+  }
 }
 
 /// Represents a single measure in a guitar tab track
@@ -67,6 +110,8 @@ class TabPlayerState {
   final List<TabMeasure> measures;
   final bool isLooping;
   final bool isLiveMicMode;
+  final NoteDuration selectedDuration; // Currently selected note duration for manual entry
+  final List<double> tapTempoHistory; // BPM tap tempo samples
 
   const TabPlayerState({
     required this.isPlaying,
@@ -79,6 +124,8 @@ class TabPlayerState {
     required this.measures,
     required this.isLooping,
     this.isLiveMicMode = false,
+    this.selectedDuration = NoteDuration.quarter,
+    this.tapTempoHistory = const [],
   });
 
   TabPlayerState copyWith({
@@ -92,6 +139,8 @@ class TabPlayerState {
     List<TabMeasure>? measures,
     bool? isLooping,
     bool? isLiveMicMode,
+    NoteDuration? selectedDuration,
+    List<double>? tapTempoHistory,
   }) {
     return TabPlayerState(
       isPlaying: isPlaying ?? this.isPlaying,
@@ -104,6 +153,8 @@ class TabPlayerState {
       measures: measures ?? this.measures,
       isLooping: isLooping ?? this.isLooping,
       isLiveMicMode: isLiveMicMode ?? this.isLiveMicMode,
+      selectedDuration: selectedDuration ?? this.selectedDuration,
+      tapTempoHistory: tapTempoHistory ?? this.tapTempoHistory,
     );
   }
 }
@@ -274,9 +325,20 @@ class TabPlayerNotifier extends StateNotifier<TabPlayerState> {
       final double rawPos = i * beatStep;
       final double quantizedPos = ((rawPos * 4.0).round() / 4.0).clamp(0.0, totalBeats);
 
+      // Infer duration from beat step between consecutive notes
+      final double nextPos = i < _recordedFrequencyBuffer.length - 1
+          ? ((i + 1) * beatStep * 4.0).round() / 4.0
+          : totalBeats;
+      final double beatSpan = (nextPos - quantizedPos).clamp(0.25, 4.0);
+
       final note = _solveGuitarCoordinate(frequency, quantizedPos);
       if (note != null) {
-        batchNotes.add(note);
+        batchNotes.add(TabNote(
+          stringIndex: note.stringIndex,
+          fret: note.fret,
+          position: quantizedPos,
+          duration: NoteDuration.fromBeatSpan(beatSpan),
+        ));
       }
     }
 
@@ -404,6 +466,95 @@ class TabPlayerNotifier extends StateNotifier<TabPlayerState> {
     state = state.copyWith(isLooping: !state.isLooping);
   }
 
+  /// Reset tab to empty state with a single empty measure
+  void clearTab() {
+    _triggeredBeatPositions.clear();
+    _recordedFrequencyBuffer.clear();
+    _synthAudioPlayer.stop();
+    _recordingTimer?.cancel();
+    _recordingTimer = null;
+    state = state.copyWith(
+      isPlaying: false,
+      isRecording: false,
+      isLiveMicMode: false,
+      playheadPosition: 0.0,
+      totalMeasures: 4,
+      measures: List.generate(4, (i) => TabMeasure(number: i + 1, notes: const [])),
+    );
+  }
+
+  /// Add a note manually at the given beat position (used for tap-to-add on score)
+  void addNoteManually(int stringIndex, int fret, double position) {
+    if (stringIndex < 1 || stringIndex > 6 || fret < 0 || fret > 24) return;
+
+    final note = TabNote(
+      stringIndex: stringIndex,
+      fret: fret,
+      position: position,
+      duration: state.selectedDuration,
+    );
+    _appendOrUpdateNote(note);
+  }
+
+  /// Cycle through note duration options
+  void cycleSelectedDuration() {
+    final durations = NoteDuration.values;
+    final currentIndex = durations.indexOf(state.selectedDuration);
+    final nextIndex = (currentIndex + 1) % durations.length;
+    state = state.copyWith(selectedDuration: durations[nextIndex]);
+  }
+
+  void setSelectedDuration(NoteDuration duration) {
+    state = state.copyWith(selectedDuration: duration);
+  }
+
+  /// Register a tap for BPM calculation
+  void registerTapTempo() {
+    final now = DateTime.now().millisecondsSinceEpoch / 1000.0;
+    final updatedHistory = List<double>.from(state.tapTempoHistory)..add(now);
+
+    // Keep only last 8 taps
+    while (updatedHistory.length > 8) {
+      updatedHistory.removeAt(0);
+    }
+
+    // Calculate BPM from tap intervals if we have at least 2 taps
+    double? newBpm;
+    if (updatedHistory.length >= 2) {
+      double totalInterval = 0;
+      for (int i = 1; i < updatedHistory.length; i++) {
+        totalInterval += updatedHistory[i] - updatedHistory[i - 1];
+      }
+      final avgInterval = totalInterval / (updatedHistory.length - 1);
+      if (avgInterval > 0.1) {
+        newBpm = (60.0 / avgInterval).clamp(40.0, 280.0).roundToDouble();
+      }
+    }
+
+    state = state.copyWith(
+      tapTempoHistory: updatedHistory,
+      currentBpm: newBpm ?? state.currentBpm,
+    );
+  }
+
+  /// Delete a note at the given position on a specific string
+  void deleteNoteAt(int stringIndex, double position) {
+    final updatedMeasures = List<TabMeasure>.from(state.measures);
+    final tolerance = 0.15;
+    final int measureIndex = (position / 4.0).floor().clamp(0, updatedMeasures.length - 1);
+    final currentNotes = List<TabNote>.from(updatedMeasures[measureIndex].notes);
+
+    currentNotes.removeWhere((n) =>
+        n.stringIndex == stringIndex &&
+        (n.position - position).abs() < tolerance);
+
+    updatedMeasures[measureIndex] = TabMeasure(
+      number: updatedMeasures[measureIndex].number,
+      notes: currentNotes,
+    );
+    state = state.copyWith(measures: updatedMeasures);
+  }
+
   @override
   void dispose() {
     _recordingTimer?.cancel();
@@ -416,37 +567,36 @@ class TabPlayerNotifier extends StateNotifier<TabPlayerState> {
       const TabMeasure(
         number: 1,
         notes: [
-          TabNote(stringIndex: 6, fret: 0, position: 0.0),
-          TabNote(stringIndex: 5, fret: 2, position: 1.0),
-          TabNote(stringIndex: 4, fret: 2, position: 2.0),
-          TabNote(stringIndex: 3, fret: 1, position: 3.0),
+          TabNote(stringIndex: 6, fret: 0, position: 0.0, duration: NoteDuration.quarter),
+          TabNote(stringIndex: 5, fret: 2, position: 1.0, duration: NoteDuration.quarter),
+          TabNote(stringIndex: 4, fret: 2, position: 2.0, duration: NoteDuration.quarter),
+          TabNote(stringIndex: 3, fret: 1, position: 3.0, duration: NoteDuration.quarter),
         ],
       ),
       const TabMeasure(
         number: 2,
         notes: [
-          TabNote(stringIndex: 1, fret: 3, position: 4.0),
-          TabNote(stringIndex: 2, fret: 0, position: 5.0),
-          TabNote(stringIndex: 3, fret: 0, position: 6.0),
-          TabNote(stringIndex: 4, fret: 0, position: 7.0),
+          TabNote(stringIndex: 1, fret: 3, position: 4.0, duration: NoteDuration.quarter),
+          TabNote(stringIndex: 2, fret: 0, position: 5.0, duration: NoteDuration.quarter),
+          TabNote(stringIndex: 3, fret: 0, position: 6.0, duration: NoteDuration.half),
+          TabNote(stringIndex: 4, fret: 2, position: 7.5, duration: NoteDuration.eighth),
         ],
       ),
       const TabMeasure(
         number: 3,
         notes: [
-          TabNote(stringIndex: 5, fret: 3, position: 8.0),
-          TabNote(stringIndex: 4, fret: 2, position: 9.0),
-          TabNote(stringIndex: 3, fret: 0, position: 10.0),
-          TabNote(stringIndex: 2, fret: 1, position: 11.0),
+          TabNote(stringIndex: 5, fret: 3, position: 8.0, duration: NoteDuration.quarter),
+          TabNote(stringIndex: 4, fret: 2, position: 9.0, duration: NoteDuration.quarter),
+          TabNote(stringIndex: 3, fret: 0, position: 10.0, duration: NoteDuration.quarter),
+          TabNote(stringIndex: 2, fret: 1, position: 11.0, duration: NoteDuration.quarter),
         ],
       ),
       const TabMeasure(
         number: 4,
         notes: [
-          TabNote(stringIndex: 6, fret: 3, position: 12.0),
-          TabNote(stringIndex: 5, fret: 2, position: 13.0),
-          TabNote(stringIndex: 1, fret: 3, position: 14.0),
-          TabNote(stringIndex: 2, fret: 3, position: 15.0),
+          TabNote(stringIndex: 6, fret: 3, position: 12.0, duration: NoteDuration.half),
+          TabNote(stringIndex: 5, fret: 2, position: 14.0, duration: NoteDuration.quarter),
+          TabNote(stringIndex: 1, fret: 3, position: 15.0, duration: NoteDuration.quarter),
         ],
       ),
     ];

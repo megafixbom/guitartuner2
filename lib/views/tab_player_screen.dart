@@ -83,6 +83,8 @@ class _TabPlayerScreenState extends ConsumerState<TabPlayerScreen>
         ref.watch(tabPlayerProvider.select((s) => s.totalMeasures));
     final selectedDuration =
         ref.watch(tabPlayerProvider.select((s) => s.selectedDuration));
+    final selectedArticulation =
+        ref.watch(tabPlayerProvider.select((s) => s.selectedArticulation));
     final tapTempoHistory =
         ref.watch(tabPlayerProvider.select((s) => s.tapTempoHistory));
 
@@ -130,6 +132,7 @@ class _TabPlayerScreenState extends ConsumerState<TabPlayerScreen>
               isLiveMicMode: isLiveMicMode,
               currentBpm: currentBpm,
               selectedDuration: selectedDuration,
+              selectedArticulation: selectedArticulation,
               tapTempoHistory: tapTempoHistory,
             ),
             if (isRecording)
@@ -259,6 +262,7 @@ class _TabPlayerScreenState extends ConsumerState<TabPlayerScreen>
     required bool isLiveMicMode,
     required double currentBpm,
     required NoteDuration selectedDuration,
+    required Articulation selectedArticulation,
     required List<double> tapTempoHistory,
   }) {
     return Container(
@@ -269,16 +273,14 @@ class _TabPlayerScreenState extends ConsumerState<TabPlayerScreen>
       ),
       child: Row(
         children: [
-          // Mode toggle
           _modePill(isLiveMicMode: isLiveMicMode),
           const Spacer(),
-          // BPM section
           _bpmControl(currentBpm),
-          const SizedBox(width: 12),
-          // Duration selector
+          const SizedBox(width: 10),
+          _articulationChip(selectedArticulation),
+          const SizedBox(width: 10),
           _durationChip(selectedDuration),
-          const SizedBox(width: 12),
-          // Transport buttons
+          const SizedBox(width: 10),
           _transportButtons(isPlaying: isPlaying, isRecording: isRecording),
         ],
       ),
@@ -395,6 +397,44 @@ class _TabPlayerScreenState extends ConsumerState<TabPlayerScreen>
           border: Border.all(color: _borderSubtle),
         ),
         child: Icon(icon, size: 14, color: _textMuted),
+      ),
+    );
+  }
+
+  Widget _articulationChip(Articulation articulation) {
+    final bool isActive = articulation != Articulation.none;
+    final Color chipColor = isActive ? const Color(0xFFF59E0B) : _textMuted;
+
+    return GestureDetector(
+      onTap: () =>
+          ref.read(tabPlayerProvider.notifier).cycleSelectedArticulation(),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+              color: isActive ? chipColor.withValues(alpha: 0.5) : _borderSubtle),
+          color: isActive ? chipColor.withValues(alpha: 0.1) : Colors.transparent,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              isActive ? Icons.trending_flat : Icons.music_note,
+              size: 13,
+              color: chipColor,
+            ),
+            const SizedBox(width: 4),
+            Text(
+              articulation.tabSymbol.isEmpty ? '—' : articulation.tabSymbol,
+              style: GoogleFonts.outfit(
+                fontSize: 13,
+                fontWeight: FontWeight.w900,
+                color: chipColor,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -910,140 +950,273 @@ class TabNotationPainter extends CustomPainter {
   void _drawNotes(Canvas canvas, double startX, double measureWidth,
       double notationTopY, double notationSpacing,
       double tabTopY, double tabSpacing) {
+    // Collect all notes sorted by position, grouped by string for articulation rendering
+    final List<TabNote> allNotes = [];
+    for (var measure in measures) {
+      allNotes.addAll(measure.notes);
+    }
+    allNotes.sort((a, b) => a.position.compareTo(b.position));
+
     final fretStyle = TextStyle(
       color: const Color(0xFF1E293B),
       fontSize: 12,
       fontWeight: FontWeight.w900,
     );
 
-    for (var measure in measures) {
-      for (var note in measure.notes) {
-        final double noteX =
-            startX + (note.position * (measureWidth / 4.0));
-        final double tabY = tabTopY + ((note.stringIndex - 1) * tabSpacing);
+    final artStyle = TextStyle(
+      color: const Color(0xFF6B7280),
+      fontSize: 10,
+      fontWeight: FontWeight.bold,
+      fontStyle: FontStyle.italic,
+    );
 
-        // White background behind fret number or X
-        canvas.drawRect(
-          Rect.fromCenter(center: Offset(noteX, tabY), width: 16, height: 11),
-          Paint()..color = const Color(0xFFFAF8F0),
-        );
+    // Phase 1: Draw TAB fret numbers / X / articulation symbols
+    for (var note in allNotes) {
+      final double noteX =
+          startX + (note.position * (measureWidth / 4.0));
+      final double tabY = tabTopY + ((note.stringIndex - 1) * tabSpacing);
 
-        if (note.isGhost) {
-          // Draw X for ghost/muted notes
-          final xPaint = Paint()
-            ..color = const Color(0xFF1E293B)
-            ..strokeWidth = 1.8
-            ..strokeCap = StrokeCap.round;
-          const double xSize = 5.0;
-          canvas.drawLine(
-            Offset(noteX - xSize, tabY - xSize),
-            Offset(noteX + xSize, tabY + xSize),
-            xPaint,
-          );
-          canvas.drawLine(
-            Offset(noteX + xSize, tabY - xSize),
-            Offset(noteX - xSize, tabY + xSize),
-            xPaint,
-          );
-        } else {
-          final fretSpan =
-              TextSpan(text: '${note.fret}', style: fretStyle);
-          final fretPainter =
-              TextPainter(text: fretSpan, textDirection: TextDirection.ltr);
-          fretPainter.layout();
-          fretPainter.paint(canvas, Offset(noteX - 5, tabY - 7));
-        }
+      // White background cutout
+      final double bgWidth =
+          note.articulation != Articulation.none && !note.isGhost ? 28.0 : 16.0;
+      canvas.drawRect(
+        Rect.fromCenter(
+            center: Offset(noteX, tabY), width: bgWidth, height: 11),
+        Paint()..color = const Color(0xFFFAF8F0),
+      );
 
-        // Standard notation head with duration-based engraving
-        final double notationY =
-            notationTopY + (note.stringIndex * 3.2);
-        final headPaint = Paint()
-          ..color = const Color(0xFF1E293B)
-          ..style = PaintingStyle.fill;
+      if (note.isGhost) {
+        _drawGhostX(canvas, noteX, tabY);
+      } else {
+        final String fretText = '${note.fret}';
+        final String artSuffix = note.articulation.tabSymbol.isNotEmpty
+            ? ' ${note.articulation.tabSymbol}'
+            : '';
+        final String displayText = '$fretText$artSuffix';
 
-        switch (note.duration) {
-          case NoteDuration.whole:
-          case NoteDuration.half:
-            // Open note head (ellipse)
-            canvas.drawOval(
-              Rect.fromCenter(
-                  center: Offset(noteX, notationY),
-                  width: 7,
-                  height: 5.5),
-              Paint()
-                ..color = const Color(0xFFFAF8F0)
-                ..style = PaintingStyle.fill,
-            );
-            canvas.drawOval(
-              Rect.fromCenter(
-                  center: Offset(noteX, notationY),
-                  width: 7,
-                  height: 5.5),
-              Paint()
-                ..color = const Color(0xFF1E293B)
-                ..style = PaintingStyle.stroke
-                ..strokeWidth = 1.2,
-            );
-            if (note.duration != NoteDuration.whole) {
-              canvas.drawLine(
-                Offset(noteX + 3.5, notationY),
-                Offset(noteX + 3.5, notationY - 16),
-                Paint()
-                  ..color = const Color(0xFF1E293B)
-                  ..strokeWidth = 1.2,
-              );
-            }
-            break;
-          case NoteDuration.quarter:
-            canvas.drawCircle(Offset(noteX, notationY), 4, headPaint);
-            canvas.drawLine(
-              Offset(noteX + 3.5, notationY),
-              Offset(noteX + 3.5, notationY - 16),
-              Paint()
-                ..color = const Color(0xFF1E293B)
-                ..strokeWidth = 1.2,
-            );
-            break;
-          case NoteDuration.eighth:
-          case NoteDuration.sixteenth:
-            canvas.drawCircle(Offset(noteX, notationY), 4, headPaint);
-            canvas.drawLine(
-              Offset(noteX + 3.5, notationY),
-              Offset(noteX + 3.5, notationY - 16),
-              Paint()
-                ..color = const Color(0xFF1E293B)
-                ..strokeWidth = 1.2,
-            );
-            // Flag
-            final flagPath = Path()
-              ..moveTo(noteX + 3.5, notationY - 16)
-              ..quadraticBezierTo(noteX + 10, notationY - 12,
-                  noteX + 10, notationY - 6);
-            canvas.drawPath(
-              flagPath,
-              Paint()
-                ..color = const Color(0xFF1E293B)
-                ..style = PaintingStyle.stroke
-                ..strokeWidth = 1.0,
-            );
-            if (note.duration == NoteDuration.sixteenth) {
-              final flag2 = Path()
-                ..moveTo(noteX + 3.5, notationY - 12)
-                ..quadraticBezierTo(noteX + 10, notationY - 8,
-                    noteX + 10, notationY - 3);
-              canvas.drawPath(
-                flag2,
-                Paint()
-                  ..color = const Color(0xFF1E293B)
-                  ..style = PaintingStyle.stroke
-                  ..strokeWidth = 1.0,
-              );
-            }
-            break;
-        }
+        final fretSpan = TextSpan(text: displayText, style: fretStyle);
+        final fretPainter =
+            TextPainter(text: fretSpan, textDirection: TextDirection.ltr);
+        fretPainter.layout();
+        fretPainter.paint(canvas, Offset(
+          noteX - (fretPainter.width / 2),
+          tabY - 7,
+        ));
       }
+
+      // Draw standard notation head
+      _drawNotationHead(canvas, note, noteX, notationTopY, notationSpacing);
+    }
+
+    // Phase 2: Draw articulation connectors between consecutive same-string notes
+    _drawArticulationConnectors(
+        canvas, allNotes, startX, measureWidth, tabTopY, tabSpacing, notationTopY);
+  }
+
+  void _drawGhostX(Canvas canvas, double noteX, double tabY) {
+    final xPaint = Paint()
+      ..color = const Color(0xFF1E293B)
+      ..strokeWidth = 1.8
+      ..strokeCap = StrokeCap.round;
+    const double xSize = 5.0;
+    canvas.drawLine(
+      Offset(noteX - xSize, tabY - xSize),
+      Offset(noteX + xSize, tabY + xSize),
+      xPaint,
+    );
+    canvas.drawLine(
+      Offset(noteX + xSize, tabY - xSize),
+      Offset(noteX - xSize, tabY + xSize),
+      xPaint,
+    );
+  }
+
+  void _drawNotationHead(Canvas canvas, TabNote note, double noteX,
+      double notationTopY, double notationSpacing) {
+    final double notationY = notationTopY + (note.stringIndex * 3.2);
+
+    if (note.isGhost) {
+      // Ghost: draw X in standard notation too
+      final xPaint = Paint()
+        ..color = const Color(0xFF1E293B)
+        ..strokeWidth = 1.2
+        ..strokeCap = StrokeCap.round;
+      const double xs = 3.5;
+      canvas.drawLine(
+        Offset(noteX - xs, notationY - xs),
+        Offset(noteX + xs, notationY + xs),
+        xPaint,
+      );
+      canvas.drawLine(
+        Offset(noteX + xs, notationY - xs),
+        Offset(noteX - xs, notationY + xs),
+        xPaint,
+      );
+      return;
+    }
+
+    final headPaint = Paint()
+      ..color = const Color(0xFF1E293B)
+      ..style = PaintingStyle.fill;
+
+    switch (note.duration) {
+      case NoteDuration.whole:
+      case NoteDuration.half:
+        canvas.drawOval(
+          Rect.fromCenter(
+              center: Offset(noteX, notationY), width: 7, height: 5.5),
+          Paint()
+            ..color = const Color(0xFFFAF8F0)
+            ..style = PaintingStyle.fill,
+        );
+        canvas.drawOval(
+          Rect.fromCenter(
+              center: Offset(noteX, notationY), width: 7, height: 5.5),
+          Paint()
+            ..color = const Color(0xFF1E293B)
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 1.2,
+        );
+        if (note.duration != NoteDuration.whole) {
+          canvas.drawLine(
+            Offset(noteX + 3.5, notationY),
+            Offset(noteX + 3.5, notationY - 16),
+            Paint()
+              ..color = const Color(0xFF1E293B)
+              ..strokeWidth = 1.2,
+          );
+        }
+        break;
+      case NoteDuration.quarter:
+        canvas.drawCircle(Offset(noteX, notationY), 4, headPaint);
+        canvas.drawLine(
+          Offset(noteX + 3.5, notationY),
+          Offset(noteX + 3.5, notationY - 16),
+          Paint()
+            ..color = const Color(0xFF1E293B)
+            ..strokeWidth = 1.2,
+        );
+        break;
+      case NoteDuration.eighth:
+      case NoteDuration.sixteenth:
+        canvas.drawCircle(Offset(noteX, notationY), 4, headPaint);
+        canvas.drawLine(
+          Offset(noteX + 3.5, notationY),
+          Offset(noteX + 3.5, notationY - 16),
+          Paint()
+            ..color = const Color(0xFF1E293B)
+            ..strokeWidth = 1.2,
+        );
+        final flagPath = Path()
+          ..moveTo(noteX + 3.5, notationY - 16)
+          ..quadraticBezierTo(
+              noteX + 10, notationY - 12, noteX + 10, notationY - 6);
+        canvas.drawPath(
+          flagPath,
+          Paint()
+            ..color = const Color(0xFF1E293B)
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 1.0,
+        );
+        if (note.duration == NoteDuration.sixteenth) {
+          final flag2 = Path()
+            ..moveTo(noteX + 3.5, notationY - 12)
+            ..quadraticBezierTo(
+                noteX + 10, notationY - 8, noteX + 10, notationY - 3);
+          canvas.drawPath(
+            flag2,
+            Paint()
+              ..color = const Color(0xFF1E293B)
+              ..style = PaintingStyle.stroke
+              ..strokeWidth = 1.0,
+          );
+        }
+        break;
     }
   }
+
+  void _drawArticulationConnectors(Canvas canvas, List<TabNote> allNotes,
+      double startX, double measureWidth, double tabTopY, double tabSpacing,
+      double notationTopY) {
+    const color = Color(0xFF6B7280);
+
+    for (int i = 0; i < allNotes.length - 1; i++) {
+      final a = allNotes[i];
+      final b = allNotes[i + 1];
+
+      if (a.stringIndex != b.stringIndex) continue;
+      if (!a.articulation.isConnector) continue;
+      if (a.isGhost || b.isGhost) continue;
+
+      final double x1 = startX + (a.position * (measureWidth / 4.0));
+      final double x2 = startX + (b.position * (measureWidth / 4.0));
+      final double y = tabTopY + ((a.stringIndex - 1) * tabSpacing);
+
+      final connectorPaint = Paint()
+        ..color = color
+        ..strokeWidth = 1.2
+        ..strokeCap = StrokeCap.round;
+
+      switch (a.articulation) {
+        case Articulation.slideUp:
+        case Articulation.slideDown:
+          // Diagonal slide line
+          canvas.drawLine(
+            Offset(x1 + 8, y),
+            Offset(x2 - 8, y - 3),
+            connectorPaint,
+          );
+          break;
+        case Articulation.hammerOn:
+        case Articulation.pullOff:
+          // Curved slur arc between the two notes
+          final double midX = (x1 + x2) / 2;
+          final double labelY = y - 16;
+          final slurPath = Path()
+            ..moveTo(x1 + 6, y - 4)
+            ..quadraticBezierTo(midX, labelY, x2 - 6, y - 4);
+          canvas.drawPath(slurPath, connectorPaint..style = PaintingStyle.stroke);
+
+          // H or P label
+          final label = a.articulation == Articulation.hammerOn ? 'h' : 'p';
+          final labelSpan = TextSpan(
+            text: label,
+            style: TextStyle(
+              color: color,
+              fontSize: 9,
+              fontWeight: FontWeight.bold,
+              fontStyle: FontStyle.italic,
+            ),
+          );
+          final lp = TextPainter(
+            text: labelSpan,
+            textDirection: TextDirection.ltr,
+          );
+          lp.layout();
+          lp.paint(canvas, Offset(midX - 3, labelY - 10));
+          break;
+        default:
+          break;
+      }
+
+      // Standard notation slur arc for H/P/slides
+      final double nY1 = notationTopY + (a.stringIndex * 3.2);
+      final double nY2 = notationTopY + (b.stringIndex * 3.2);
+      const double slurOffset = 14.0;
+      final slurPathStd = Path()
+        ..moveTo(x1 + 6, nY1 - slurOffset)
+        ..quadraticBezierTo(
+          (x1 + x2) / 2, nY1 - slurOffset - 8, x2 - 6, nY2 - slurOffset);
+      canvas.drawPath(
+        slurPathStd,
+        Paint()
+          ..color = color
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.0,
+      );
+    }
+  }
+
 
   @override
   bool shouldRepaint(covariant TabNotationPainter oldDelegate) {

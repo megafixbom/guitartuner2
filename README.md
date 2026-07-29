@@ -25,6 +25,7 @@ Under the hood, the app features an optimized digital signal processing (DSP) pi
   * Tap on the score canvas to add notes at quantized 16th-note positions with the currently selected note duration.
   * Tap on the fretboard visualizer to place notes by string and fret position.
   * Note duration selector cycling through whole, half, quarter, eighth, and sixteenth notes.
+  * Articulation selector for slides (`/`), hammer-ons (`h`), pull-offs (`p`), bends (`b`), release, and vibrato (`~`). Articulation symbols rendered inline on TAB staff with connector curves and slur arcs in standard notation.
 * **15-Fret Rosewood Guitar Visualizer**:
   * Detailed rosewood neck texture with 12-TET logarithmic fret wire scaling, bone nut, inlay markers (single + double at 12th), and proportional steel string gauges.
   * String labels (`e, B, G, D, A, E`) on nut area and fret number markers along the bottom.
@@ -72,7 +73,7 @@ guitartuner2/
 ├── test/
 │   ├── tuner_test.dart                # Complete DSP, FloatRingBuffer & JSON serialization unit tests
 │   └── widget_test.dart               # Flutter smoke and widget integration tests
-├── CHANGELOG.md                       # Comprehensive version changelog (v1.0.0, v1.0.1, v1.1.0)
+├── CHANGELOG.md                       # Comprehensive version changelog (v1.0.0 - v1.3.0)
 └── README.md                          # Project documentation and setup guide
 ```
 

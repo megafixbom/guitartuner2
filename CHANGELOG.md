@@ -4,6 +4,27 @@ All notable changes to the GuitarTuner app are documented in this file.
 
 ---
 
+## [1.3.0] - 2026-07-29
+
+### Articulation Symbols & Connectors
+- **Articulation Enum**: Added `Articulation` enum with `slideUp`, `slideDown`, `bend`, `release`, `hammerOn`, `pullOff`, and `vibrato`. Each has a `tabSymbol`, `label`, and `isConnector` getter for rendering logic.
+- **Articulation per Note**: `TabNote` now includes an optional `articulation` field (defaults to `none`). Articulation applies to the first note of a connected pair (e.g., `slideUp` on note A means slide to the next same-string note B).
+- **Articulation Selector in Toolbar**: New amber-highlighted chip button in the `TabPlayerScreen` toolbar cycles through articulations. All manually added notes inherit the currently selected articulation.
+- **TAB Staff Rendering**: `TabNotationPainter` appends articulation symbols (e.g., `/` for slide, `b` for bend, `p` for pull-off) next to fret numbers on the TAB staff.
+- **Slide Lines**: Diagonal connector lines drawn between consecutive same-string notes with `slideUp` or `slideDown` articulation.
+- **Hammer-On / Pull-Off Curves**: Curved slur arcs with italic `h` or `p` labels centered between the two notes in both TAB and standard notation staves.
+- **Standard Notation Slur Arcs**: Curved slur lines rendered in standard notation for all connector-type articulations (slides, hammer-ons, pull-offs).
+- **Non-Connector Articulations**: `bend`, `release`, and `vibrato` symbols rendered inline next to fret numbers as standalone per-note effects.
+- **Sample Tab Updated**: `_generateSampleTab()` now includes articulation examples across all 4 measures.
+- **Auto-Detection of H/P in Recording**: `_processBatchRecordedFrequencies` auto-assigns `hammerOn`/`pullOff` when consecutive same-string notes have < 0.6 beats temporal gap.
+
+### State Layer
+- `TabPlayerState` now includes `selectedArticulation` field with `copyWith` support.
+- Added `cycleSelectedArticulation()` and `setSelectedArticulation()` notifier methods.
+- `addNoteManually()` uses the currently selected articulation.
+
+---
+
 ## [1.2.1] - 2026-07-29
 
 ### Ghost / Muted Note Detection & X Notation

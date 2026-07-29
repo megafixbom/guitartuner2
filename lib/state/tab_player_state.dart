@@ -39,6 +39,90 @@ enum NoteDuration {
   }
 }
 
+enum Articulation {
+  none,
+  slideUp,    // /  — slide to higher fret
+  slideDown,  // \  — slide to lower fret
+  bend,       // b  — bend string up
+  release,    // r  — release bend back down
+  hammerOn,   // h  — hammer-on to next note
+  pullOff,    // p  — pull-off to next note
+  vibrato,    // ~  — vibrato on this note
+
+  String get tabSymbol => switch (this) {
+        Articulation.none => '',
+        Articulation.slideUp => '/',
+        Articulation.slideDown => r'\',
+        Articulation.bend => 'b',
+        Articulation.release => 'r',
+        Articulation.hammerOn => 'h',
+        Articulation.pullOff => 'p',
+        Articulation.vibrato => '~',
+      };
+
+  String get label => switch (this) {
+        Articulation.none => '—',
+        Articulation.slideUp => 'Slide /\u2191',
+        Articulation.slideDown => 'Slide \\\u2193',
+        Articulation.bend => 'Bend',
+        Articulation.release => 'Release',
+        Articulation.hammerOn => 'Hammer-on',
+        Articulation.pullOff => 'Pull-off',
+        Articulation.vibrato => 'Vibrato',
+      };
+
+  bool get isConnector => this == Articulation.slideUp ||
+      this == Articulation.slideDown ||
+      this == Articulation.hammerOn ||
+      this == Articulation.pullOff;
+}
+
+/// Represents a single note on a guitar tab staff (fret position & string index)
+class TabNote {
+  final int stringIndex; // 1 to 6 (1 is High E, 6 is Low E)
+  final int fret;        // 0 (open) to 24, or -1 for ghost/muted notes
+  final double position; // Beat position in track timeline
+  final NoteDuration duration; // Note duration type
+  final bool isGhost;    // True for muted/ghost notes (renders as X)
+  final Articulation articulation; // Articulation technique to apply
+
+  const TabNote({
+    required this.stringIndex,
+    required this.fret,
+    required this.position,
+    this.duration = NoteDuration.quarter,
+    this.isGhost = false,
+    this.articulation = Articulation.none,
+  });
+
+  Map<String, dynamic> toJson() => {
+        'stringIndex': stringIndex,
+        'fret': fret,
+        'position': position,
+        'duration': duration.label,
+        if (isGhost) 'isGhost': true,
+        if (articulation != Articulation.none) 'articulation': articulation.name,
+      };
+
+  factory TabNote.fromJson(Map<String, dynamic> json) => TabNote(
+        stringIndex: json['stringIndex'] as int,
+        fret: json['fret'] as int,
+        position: (json['position'] as num).toDouble(),
+        duration: _parseDuration((json['duration'] as String?) ?? '4'),
+        isGhost: (json['isGhost'] as bool?) ?? false,
+        articulation: _parseArticulation((json['articulation'] as String?)),
+      );
+
+  static Articulation _parseArticulation(String? name) {
+    if (name == null) return Articulation.none;
+    return Articulation.values.firstWhere(
+      (a) => a.name == name,
+      orElse: () => Articulation.none,
+    );
+  }
+}
+}
+
 /// Represents a single note on a guitar tab staff (fret position & string index)
 class TabNote {
   final int stringIndex; // 1 to 6 (1 is High E, 6 is Low E)
@@ -115,6 +199,7 @@ class TabPlayerState {
   final bool isLooping;
   final bool isLiveMicMode;
   final NoteDuration selectedDuration; // Currently selected note duration for manual entry
+  final Articulation selectedArticulation; // Currently selected articulation for manual entry
   final List<double> tapTempoHistory; // BPM tap tempo samples
 
   const TabPlayerState({
@@ -129,6 +214,7 @@ class TabPlayerState {
     required this.isLooping,
     this.isLiveMicMode = false,
     this.selectedDuration = NoteDuration.quarter,
+    this.selectedArticulation = Articulation.none,
     this.tapTempoHistory = const [],
   });
 
@@ -144,6 +230,7 @@ class TabPlayerState {
     bool? isLooping,
     bool? isLiveMicMode,
     NoteDuration? selectedDuration,
+    Articulation? selectedArticulation,
     List<double>? tapTempoHistory,
   }) {
     return TabPlayerState(
@@ -158,6 +245,7 @@ class TabPlayerState {
       isLooping: isLooping ?? this.isLooping,
       isLiveMicMode: isLiveMicMode ?? this.isLiveMicMode,
       selectedDuration: selectedDuration ?? this.selectedDuration,
+      selectedArticulation: selectedArticulation ?? this.selectedArticulation,
       tapTempoHistory: tapTempoHistory ?? this.tapTempoHistory,
     );
   }
@@ -386,6 +474,33 @@ class TabPlayerNotifier extends StateNotifier<TabPlayerState> {
     // Sort all notes by position
     batchNotes.sort((a, b) => a.position.compareTo(b.position));
 
+    // Auto-detect hammer-ons and pull-offs between same-string consecutive notes
+    for (int i = 0; i < batchNotes.length - 1; i++) {
+      if (batchNotes[i].isGhost || batchNotes[i + 1].isGhost) continue;
+      if (batchNotes[i].stringIndex != batchNotes[i + 1].stringIndex) continue;
+
+      final double gap = batchNotes[i + 1].position - batchNotes[i].position;
+      if (gap > 0.01 && gap < 0.6) {
+        if (batchNotes[i + 1].fret > batchNotes[i].fret) {
+          batchNotes[i] = TabNote(
+            stringIndex: batchNotes[i].stringIndex,
+            fret: batchNotes[i].fret,
+            position: batchNotes[i].position,
+            duration: batchNotes[i].duration,
+            articulation: Articulation.hammerOn,
+          );
+        } else if (batchNotes[i + 1].fret < batchNotes[i].fret) {
+          batchNotes[i] = TabNote(
+            stringIndex: batchNotes[i].stringIndex,
+            fret: batchNotes[i].fret,
+            position: batchNotes[i].position,
+            duration: batchNotes[i].duration,
+            articulation: Articulation.pullOff,
+          );
+        }
+      }
+    }
+
     if (batchNotes.isNotEmpty) {
       final measureCount = (totalBeats / 4.0).ceil().clamp(1, 16).toInt();
       final updatedMeasures = List<TabMeasure>.generate(measureCount, (i) {
@@ -539,6 +654,7 @@ class TabPlayerNotifier extends StateNotifier<TabPlayerState> {
       fret: fret,
       position: position,
       duration: state.selectedDuration,
+      articulation: state.selectedArticulation,
     );
     _appendOrUpdateNote(note);
   }
@@ -553,6 +669,18 @@ class TabPlayerNotifier extends StateNotifier<TabPlayerState> {
 
   void setSelectedDuration(NoteDuration duration) {
     state = state.copyWith(selectedDuration: duration);
+  }
+
+  /// Cycle through articulation options
+  void cycleSelectedArticulation() {
+    final articulations = Articulation.values;
+    final currentIndex = articulations.indexOf(state.selectedArticulation);
+    final nextIndex = (currentIndex + 1) % articulations.length;
+    state = state.copyWith(selectedArticulation: articulations[nextIndex]);
+  }
+
+  void setSelectedArticulation(Articulation articulation) {
+    state = state.copyWith(selectedArticulation: articulation);
   }
 
   /// Register a tap for BPM calculation
@@ -616,8 +744,10 @@ class TabPlayerNotifier extends StateNotifier<TabPlayerState> {
         notes: [
           TabNote(stringIndex: 6, fret: 0, position: 0.0, duration: NoteDuration.quarter),
           TabNote(stringIndex: 5, fret: 2, position: 1.0, duration: NoteDuration.quarter),
-          TabNote(stringIndex: 4, fret: 2, position: 2.0, duration: NoteDuration.quarter),
-          TabNote(stringIndex: 3, fret: 1, position: 3.0, duration: NoteDuration.quarter),
+          TabNote(stringIndex: 5, fret: 3, position: 1.5, duration: NoteDuration.eighth, articulation: Articulation.hammerOn),
+          TabNote(stringIndex: 5, fret: 2, position: 2.0, duration: NoteDuration.eighth, articulation: Articulation.pullOff),
+          TabNote(stringIndex: 4, fret: 2, position: 2.5, duration: NoteDuration.quarter, articulation: Articulation.slideUp),
+          TabNote(stringIndex: 4, fret: 5, position: 3.5, duration: NoteDuration.eighth, articulation: Articulation.vibrato),
         ],
       ),
       const TabMeasure(
@@ -632,17 +762,18 @@ class TabPlayerNotifier extends StateNotifier<TabPlayerState> {
       const TabMeasure(
         number: 3,
         notes: [
-          TabNote(stringIndex: 5, fret: 3, position: 8.0, duration: NoteDuration.quarter),
-          TabNote(stringIndex: 4, fret: 2, position: 9.0, duration: NoteDuration.quarter),
-          TabNote(stringIndex: 3, fret: 0, position: 10.0, duration: NoteDuration.quarter),
-          TabNote(stringIndex: 2, fret: 1, position: 11.0, duration: NoteDuration.quarter),
+          TabNote(stringIndex: 5, fret: 3, position: 8.0, duration: NoteDuration.quarter, articulation: Articulation.slideDown),
+          TabNote(stringIndex: 5, fret: 0, position: 9.0, duration: NoteDuration.quarter),
+          TabNote(stringIndex: 4, fret: 2, position: 10.0, duration: NoteDuration.quarter, articulation: Articulation.hammerOn),
+          TabNote(stringIndex: 4, fret: 4, position: 10.5, duration: NoteDuration.eighth),
+          TabNote(stringIndex: 3, fret: 0, position: 11.0, duration: NoteDuration.quarter),
         ],
       ),
       const TabMeasure(
         number: 4,
         notes: [
           TabNote(stringIndex: 6, fret: 3, position: 12.0, duration: NoteDuration.half),
-          TabNote(stringIndex: 5, fret: 2, position: 14.0, duration: NoteDuration.quarter),
+          TabNote(stringIndex: 5, fret: 2, position: 14.0, duration: NoteDuration.quarter, articulation: Articulation.bend),
           TabNote(stringIndex: 1, fret: 3, position: 15.0, duration: NoteDuration.quarter),
         ],
       ),

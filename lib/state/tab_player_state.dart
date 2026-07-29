@@ -42,15 +42,17 @@ enum NoteDuration {
 /// Represents a single note on a guitar tab staff (fret position & string index)
 class TabNote {
   final int stringIndex; // 1 to 6 (1 is High E, 6 is Low E)
-  final int fret;        // 0 (open) to 24
+  final int fret;        // 0 (open) to 24, or -1 for ghost/muted notes
   final double position; // Beat position in track timeline
   final NoteDuration duration; // Note duration type
+  final bool isGhost;    // True for muted/ghost notes (renders as X)
 
   const TabNote({
     required this.stringIndex,
     required this.fret,
     required this.position,
     this.duration = NoteDuration.quarter,
+    this.isGhost = false,
   });
 
   Map<String, dynamic> toJson() => {
@@ -58,6 +60,7 @@ class TabNote {
         'fret': fret,
         'position': position,
         'duration': duration.label,
+        if (isGhost) 'isGhost': true,
       };
 
   factory TabNote.fromJson(Map<String, dynamic> json) => TabNote(
@@ -65,6 +68,7 @@ class TabNote {
         fret: json['fret'] as int,
         position: (json['position'] as num).toDouble(),
         duration: _parseDuration((json['duration'] as String?) ?? '4'),
+        isGhost: (json['isGhost'] as bool?) ?? false,
       );
 
   static NoteDuration _parseDuration(String label) {
@@ -174,6 +178,7 @@ class TabPlayerNotifier extends StateNotifier<TabPlayerState> {
   final AudioPlayer _synthAudioPlayer = AudioPlayer();
   final Set<double> _triggeredBeatPositions = {};
   final List<double> _recordedFrequencyBuffer = [];
+  final List<double> _ghostNoteTimestamps = []; // seconds from recording start
   double _lastQuantizedPos = -1.0;
   Timer? _recordingTimer;
   DateTime? _recordingStartTime;
@@ -280,10 +285,33 @@ class TabPlayerNotifier extends StateNotifier<TabPlayerState> {
     recordRawFrequencySample(frequency);
   }
 
+  /// Record a ghost/muted note (detected transient without stable pitch)
+  void recordGhostNote() {
+    if (_recordingStartTime != null && state.isRecording) {
+      final elapsed = DateTime.now().difference(_recordingStartTime!).inMilliseconds / 1000.0;
+      _ghostNoteTimestamps.add(elapsed);
+    } else if (state.isLiveMicMode) {
+      // In live mic mode, use quantized playhead position
+      final double rawPos = state.playheadPosition;
+      final double quantizedPos = (rawPos * 4.0).round() / 4.0;
+      if ((quantizedPos - _lastQuantizedPos).abs() < 0.125) return;
+      _lastQuantizedPos = quantizedPos;
+      final ghostNote = TabNote(
+        stringIndex: 4, // Default to D string for ghost notes
+        fret: 0,
+        position: quantizedPos,
+        duration: state.selectedDuration,
+        isGhost: true,
+      );
+      _appendOrUpdateNote(ghostNote);
+    }
+  }
+
   void toggleRecording() {
     final bool newRecordingState = !state.isRecording;
     if (newRecordingState) {
       _recordedFrequencyBuffer.clear();
+      _ghostNoteTimestamps.clear();
       _lastQuantizedPos = -1.0;
       _synthAudioPlayer.stop();
       _recordingStartTime = DateTime.now();
@@ -314,18 +342,18 @@ class TabPlayerNotifier extends StateNotifier<TabPlayerState> {
   }
 
   void _processBatchRecordedFrequencies() {
-    if (_recordedFrequencyBuffer.isEmpty) return;
+    if (_recordedFrequencyBuffer.isEmpty && _ghostNoteTimestamps.isEmpty) return;
 
     final List<TabNote> batchNotes = [];
     final double totalBeats = (state.recordingDurationSeconds * state.currentBpm) / 60.0;
     final double beatStep = totalBeats / math.max(1, _recordedFrequencyBuffer.length);
 
+    // Process frequency-derived notes
     for (int i = 0; i < _recordedFrequencyBuffer.length; i++) {
       final double frequency = _recordedFrequencyBuffer[i];
       final double rawPos = i * beatStep;
       final double quantizedPos = ((rawPos * 4.0).round() / 4.0).clamp(0.0, totalBeats);
 
-      // Infer duration from beat step between consecutive notes
       final double nextPos = i < _recordedFrequencyBuffer.length - 1
           ? ((i + 1) * beatStep * 4.0).round() / 4.0
           : totalBeats;
@@ -341,6 +369,22 @@ class TabPlayerNotifier extends StateNotifier<TabPlayerState> {
         ));
       }
     }
+
+    // Process ghost note timestamps (seconds) -> convert to beat positions
+    for (final timestamp in _ghostNoteTimestamps) {
+      final double beatPos = (timestamp * state.currentBpm) / 60.0;
+      final double quantizedPos = ((beatPos * 4.0).round() / 4.0).clamp(0.0, totalBeats);
+      batchNotes.add(TabNote(
+        stringIndex: 4, // D string default for ghost notes
+        fret: 0,
+        position: quantizedPos,
+        duration: NoteDuration.eighth,
+        isGhost: true,
+      ));
+    }
+
+    // Sort all notes by position
+    batchNotes.sort((a, b) => a.position.compareTo(b.position));
 
     if (batchNotes.isNotEmpty) {
       final measureCount = (totalBeats / 4.0).ceil().clamp(1, 16).toInt();
@@ -445,7 +489,9 @@ class TabPlayerNotifier extends StateNotifier<TabPlayerState> {
         for (var note in measure.notes) {
           if ((position - note.position).abs() < 0.20 && !_triggeredBeatPositions.contains(note.position)) {
             _triggeredBeatPositions.add(note.position);
-            _playNoteSynthAudio(note);
+            if (!note.isGhost) {
+              _playNoteSynthAudio(note);
+            }
           }
         }
       }
@@ -470,6 +516,7 @@ class TabPlayerNotifier extends StateNotifier<TabPlayerState> {
   void clearTab() {
     _triggeredBeatPositions.clear();
     _recordedFrequencyBuffer.clear();
+    _ghostNoteTimestamps.clear();
     _synthAudioPlayer.stop();
     _recordingTimer?.cancel();
     _recordingTimer = null;

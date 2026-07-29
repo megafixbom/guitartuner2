@@ -101,6 +101,8 @@ class _TabPlayerScreenState extends ConsumerState<TabPlayerScreen>
           ref
               .read(tabPlayerProvider.notifier)
               .recordTranscribedPitch(next.status.detectedFrequency!);
+        } else if (next.status.hasTransientAttack) {
+          ref.read(tabPlayerProvider.notifier).recordGhostNote();
         }
         ref
             .read(tabPlayerProvider.notifier)
@@ -920,18 +922,37 @@ class TabNotationPainter extends CustomPainter {
             startX + (note.position * (measureWidth / 4.0));
         final double tabY = tabTopY + ((note.stringIndex - 1) * tabSpacing);
 
-        // White background behind fret number
+        // White background behind fret number or X
         canvas.drawRect(
           Rect.fromCenter(center: Offset(noteX, tabY), width: 16, height: 11),
           Paint()..color = const Color(0xFFFAF8F0),
         );
 
-        final fretSpan =
-            TextSpan(text: '${note.fret}', style: fretStyle);
-        final fretPainter =
-            TextPainter(text: fretSpan, textDirection: TextDirection.ltr);
-        fretPainter.layout();
-        fretPainter.paint(canvas, Offset(noteX - 5, tabY - 7));
+        if (note.isGhost) {
+          // Draw X for ghost/muted notes
+          final xPaint = Paint()
+            ..color = const Color(0xFF1E293B)
+            ..strokeWidth = 1.8
+            ..strokeCap = StrokeCap.round;
+          const double xSize = 5.0;
+          canvas.drawLine(
+            Offset(noteX - xSize, tabY - xSize),
+            Offset(noteX + xSize, tabY + xSize),
+            xPaint,
+          );
+          canvas.drawLine(
+            Offset(noteX + xSize, tabY - xSize),
+            Offset(noteX - xSize, tabY + xSize),
+            xPaint,
+          );
+        } else {
+          final fretSpan =
+              TextSpan(text: '${note.fret}', style: fretStyle);
+          final fretPainter =
+              TextPainter(text: fretSpan, textDirection: TextDirection.ltr);
+          fretPainter.layout();
+          fretPainter.paint(canvas, Offset(noteX - 5, tabY - 7));
+        }
 
         // Standard notation head with duration-based engraving
         final double notationY =
@@ -1166,28 +1187,30 @@ class FretboardPainter extends CustomPainter {
     // Active notes
     final activeNotes = _getActiveNotesAt(playheadPosition);
     for (var note in activeNotes) {
-      if (note.fret >= 0 && note.fret <= totalFrets) {
+      if ((note.fret >= 0 && note.fret <= totalFrets) || note.isGhost) {
         final double noteY = note.stringIndex * stringSpacing;
-        final double noteX = note.fret == 0
+        final double noteX = note.fret == 0 || note.isGhost
             ? 15.0
             : (fretPositions[note.fret - 1] + fretPositions[note.fret]) / 2;
+
+        final Color badgeColor = note.isGhost ? const Color(0xFFF59E0B) : const Color(0xFF10B981);
 
         canvas.drawCircle(
           Offset(noteX, noteY),
           10,
           Paint()
-            ..color = const Color(0xFF10B981).withValues(alpha: 0.5)
+            ..color = badgeColor.withValues(alpha: 0.5)
             ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6),
         );
 
         canvas.drawCircle(
           Offset(noteX, noteY),
           7,
-          Paint()..color = const Color(0xFF10B981),
+          Paint()..color = badgeColor,
         );
 
         final textSpan = TextSpan(
-          text: '${note.fret}',
+          text: note.isGhost ? 'X' : '${note.fret}',
           style: const TextStyle(
             color: Colors.white,
             fontSize: 9,
@@ -1199,7 +1222,7 @@ class FretboardPainter extends CustomPainter {
           textDirection: TextDirection.ltr,
         );
         tp.layout();
-        tp.paint(canvas, Offset(noteX - 3, noteY - 5));
+        tp.paint(canvas, Offset(note.isGhost ? noteX - 3 : noteX - 3, noteY - 5));
       }
     }
   }
@@ -1209,7 +1232,11 @@ class FretboardPainter extends CustomPainter {
     for (var measure in measures) {
       for (var note in measure.notes) {
         final endPos = note.position + note.duration.beatValue;
-        if (position >= note.position - 0.05 && position < endPos) {
+        // Ghost notes match at exact position only (percussive, no sustain)
+        final bool isActive = note.isGhost
+            ? (position - note.position).abs() < 0.08
+            : (position >= note.position - 0.05 && position < endPos);
+        if (isActive) {
           active.add(note);
         }
       }

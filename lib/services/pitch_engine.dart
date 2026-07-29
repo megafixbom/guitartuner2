@@ -27,6 +27,7 @@ class TunerStatus {
   final double volumeLevel; // RMS value for visual levels
   final double dbFS;       // Decibels relative to Full Scale (-100 dBFS to 0 dBFS)
   final double lufs;       // Loudness Units Full Scale (K-weighted loudness estimate)
+  final bool hasTransientAttack; // True when a sharp onset is detected but no stable pitch
 
   const TunerStatus({
     this.detectedFrequency,
@@ -38,6 +39,7 @@ class TunerStatus {
     this.volumeLevel = 0.0,
     this.dbFS = -100.0,
     this.lufs = -100.0,
+    this.hasTransientAttack = false,
   });
 
   const TunerStatus.searching([this.volumeLevel = 0.0, this.dbFS = -100.0, this.lufs = -100.0])
@@ -46,7 +48,8 @@ class TunerStatus {
         targetString = null,
         centsOffset = 0.0,
         isPerfect = false,
-        message = 'Pluck a string';
+        message = 'Pluck a string',
+        hasTransientAttack = false;
 }
 
 class PitchEngine {
@@ -76,6 +79,7 @@ class PitchEngine {
   static const double minConfidence = 0.65; // Balanced pitch probability threshold for low E & A strings
   static const double emaAlpha = 0.25;     // Exponential Moving Average smoothing factor
   static const double perfectThresholdCents = 3.5; // In-tune window in cents
+  static const double attackRmsThreshold = 0.025; // RMS threshold for transient/ghost note onset detection
 
   // Moving Median Filter Buffer (Window Size = 5)
   final List<double> _pitchHistory = [];
@@ -89,6 +93,7 @@ class PitchEngine {
   double? _prevFrequency;
   GuitarString? _prevString;
   int _invalidFrameCount = 0;
+  double _previousRms = 0.0;
 
   PitchEngine({int sampleRate = 16000, int bufferSize = 2048}) {
     _detector = PitchDetector(sampleRate.toDouble(), bufferSize);
@@ -105,6 +110,10 @@ class PitchEngine {
     final double dbFS = rms > 0.0000001 ? (20 * math.log(rms) / math.ln10).clamp(-100.0, 0.0) : -100.0;
     final double lufs = (dbFS - 0.69).clamp(-100.0, 0.0);
 
+    // Detect transient onset: RMS jumped from below attack threshold to above it
+    final bool isOnset = _previousRms < attackRmsThreshold && rms >= attackRmsThreshold;
+    _previousRms = rms;
+
     if (rms < noiseFloorRms) {
       // Check if we are currently holding an "In Tune" green status latch
       if (_lastInTuneTime != null && DateTime.now().difference(_lastInTuneTime!) < inTuneHoldDuration && _prevString != null) {
@@ -118,6 +127,7 @@ class PitchEngine {
           volumeLevel: rms,
           dbFS: dbFS,
           lufs: lufs,
+          hasTransientAttack: false,
         );
       }
       _resetFilters();
@@ -132,7 +142,15 @@ class PitchEngine {
       if (_invalidFrameCount >= 3) {
         _pitchHistory.clear();
       }
-      return TunerStatus.searching(rms, dbFS, lufs);
+      // Ghost note: transient detected but no stable pitch
+      final bool isGhost = isOnset && _invalidFrameCount == 1;
+      return TunerStatus(
+        volumeLevel: rms,
+        dbFS: dbFS,
+        lufs: lufs,
+        message: 'Pluck a string',
+        hasTransientAttack: isGhost,
+      );
     }
     _invalidFrameCount = 0;
 
@@ -150,7 +168,14 @@ class PitchEngine {
 
     // Guitar string fundamental range: Low E (70Hz) to High E (360Hz)
     if (rawPitch < 70.0 || rawPitch > 360.0) {
-      return TunerStatus.searching(rms, dbFS, lufs);
+      final bool isGhost = isOnset;
+      return TunerStatus(
+        volumeLevel: rms,
+        dbFS: dbFS,
+        lufs: lufs,
+        message: 'Pluck a string',
+        hasTransientAttack: isGhost,
+      );
     }
 
     // 3. Moving Median Filtering (Window Size = 5) to remove impulse glitches
@@ -231,6 +256,7 @@ class PitchEngine {
       volumeLevel: rms,
       dbFS: dbFS,
       lufs: lufs,
+      hasTransientAttack: false,
     );
   }
 
@@ -239,6 +265,7 @@ class PitchEngine {
     _prevFrequency = null;
     _prevString = null;
     _pitchHistory.clear();
+    _previousRms = 0.0;
   }
 
   /// Calculates the Root Mean Square (RMS) amplitude of the audio buffer

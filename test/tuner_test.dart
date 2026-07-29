@@ -303,6 +303,15 @@ void main() {
       expect(deserializedNote.fret, equals(3));
       expect(deserializedNote.position, equals(2.5));
       expect(deserializedNote.duration, equals(NoteDuration.quarter));
+      expect(deserializedNote.isGhost, isFalse);
+
+      // Ghost note serialization
+      const ghostNote = TabNote(stringIndex: 4, fret: 0, position: 1.0, isGhost: true);
+      final jsonGhost = ghostNote.toJson();
+      expect(jsonGhost['isGhost'], isTrue);
+      expect(jsonGhost['fret'], equals(0));
+      final deserializedGhost = TabNote.fromJson(jsonGhost);
+      expect(deserializedGhost.isGhost, isTrue);
 
       final measure = TabMeasure(number: 1, notes: [note]);
       final jsonMeasure = measure.toJson();

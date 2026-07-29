@@ -81,13 +81,14 @@ class PitchEngine {
   final List<double> _pitchHistory = [];
   static const int medianWindowSize = 5;
 
-  // Hold-Green In-Tune Latch Timer (Locks green "In Tune" status for 5 seconds)
+  // Hold-Green In-Tune Latch Timer (Locks green "In Tune" status for 0.5 seconds)
   DateTime? _lastInTuneTime;
-  static const Duration inTuneHoldDuration = Duration(milliseconds: 5000);
+  static const Duration inTuneHoldDuration = Duration(milliseconds: 500);
 
   // Filtering states
   double? _prevFrequency;
   GuitarString? _prevString;
+  int _invalidFrameCount = 0;
 
   PitchEngine({int sampleRate = 16000, int bufferSize = 2048}) {
     _detector = PitchDetector(sampleRate.toDouble(), bufferSize);
@@ -105,7 +106,6 @@ class PitchEngine {
     final double lufs = (dbFS - 0.69).clamp(-100.0, 0.0);
 
     if (rms < noiseFloorRms) {
-      _resetFilters();
       // Check if we are currently holding an "In Tune" green status latch
       if (_lastInTuneTime != null && DateTime.now().difference(_lastInTuneTime!) < inTuneHoldDuration && _prevString != null) {
         return TunerStatus(
@@ -120,6 +120,7 @@ class PitchEngine {
           lufs: lufs,
         );
       }
+      _resetFilters();
       return TunerStatus.searching(rms, dbFS, lufs);
     }
 
@@ -127,8 +128,13 @@ class PitchEngine {
     final result = _detector.getPitch(doubleSamples);
     
     if (!result.pitched || result.probability < minConfidence || result.pitch <= 0.0) {
+      _invalidFrameCount++;
+      if (_invalidFrameCount >= 3) {
+        _pitchHistory.clear();
+      }
       return TunerStatus.searching(rms, dbFS, lufs);
     }
+    _invalidFrameCount = 0;
 
     double rawPitch = result.pitch;
 
@@ -180,6 +186,7 @@ class PitchEngine {
     // 5. Exponential Moving Average (EMA) Smoothing
     if (_prevString?.index != targetString.index) {
       _prevFrequency = medianPitch;
+      _lastInTuneTime = null; // Clear latch when switching strings
     }
     
     final double smoothedPitch = _prevFrequency == null
@@ -231,6 +238,7 @@ class PitchEngine {
   void _resetFilters() {
     _prevFrequency = null;
     _prevString = null;
+    _pitchHistory.clear();
   }
 
   /// Calculates the Root Mean Square (RMS) amplitude of the audio buffer

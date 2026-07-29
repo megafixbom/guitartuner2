@@ -319,7 +319,7 @@ class TabPlayerNotifier extends StateNotifier<TabPlayerState> {
   }
 
   void pushWaveformLevel(double rmsLevel) {
-    if (state.isRecording) {
+    if (state.isRecording || state.isLiveMicMode) {
       final updatedWaveform = List<double>.from(state.waveformLevels)..add(rmsLevel);
       if (updatedWaveform.length > 30) {
         updatedWaveform.removeAt(0);

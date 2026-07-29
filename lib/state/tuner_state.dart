@@ -117,6 +117,24 @@ class TunerStateNotifier extends StateNotifier<TunerAppState> {
   Future<void> startTuning() async {
     if (state.isRecording) return;
 
+    // Configure AudioPlayer to not request audio focus, preventing it from killing the microphone stream
+    try {
+      await AudioPlayer.global.setAudioContext(AudioContext(
+        android: const AudioContextAndroid(
+          isSpeakerphoneOn: true,
+          audioMode: AndroidAudioMode.normal,
+          audioFocus: AndroidAudioFocus.none,
+        ),
+        iOS: AudioContextIOS(
+          category: AVAudioSessionCategory.playAndRecord,
+          options: const {
+            AVAudioSessionOptions.mixWithOthers,
+            AVAudioSessionOptions.defaultToSpeaker,
+          },
+        ),
+      ));
+    } catch (_) {}
+
     try {
       final stream = await _audioService.startRecordStream();
       

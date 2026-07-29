@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../state/tab_player_state.dart';
+import '../state/tuner_state.dart';
 
 /// Guitar Pro-style Interactive Tablature Workspace
 class TabPlayerScreen extends ConsumerStatefulWidget {
@@ -60,6 +61,21 @@ class _TabPlayerScreenState extends ConsumerState<TabPlayerScreen>
     } else if (!isPlaying && _playheadController.isAnimating) {
       _playheadController.stop();
     }
+
+    ref.listen<TunerAppState>(tunerStateProvider, (previous, next) {
+      if (isLiveMicMode || isRecording) {
+        if (next.status.detectedFrequency != null && next.status.detectedFrequency! > 0) {
+          ref.read(tabPlayerProvider.notifier).recordTranscribedPitch(next.status.detectedFrequency!);
+        }
+        ref.read(tabPlayerProvider.notifier).pushWaveformLevel(next.status.volumeLevel);
+      }
+    });
+
+    ref.listen<bool>(tabPlayerProvider.select((s) => s.isLiveMicMode || s.isRecording), (previous, isMicNeeded) {
+      if (isMicNeeded && previous != isMicNeeded) {
+        ref.read(tunerStateProvider.notifier).startTuning();
+      }
+    });
 
     return Scaffold(
       backgroundColor: const Color(0xFF0F172A),

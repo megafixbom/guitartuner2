@@ -36,6 +36,7 @@ Under the hood, the app features an optimized digital signal processing (DSP) pi
   * Tactile red glowing **Record Button** with pulsing animated indicator, live timer readout with 100ms clock, and a 12-bar waveform visualizer.
   * Automatic note transcription with duration inference from temporal gaps between detected frequencies.
   * Batch recording processes all samples at stop and generates measures dynamically.
+  * **Ghost/Muted Note Detection**: Transient attacks without a stable pitch (palm mutes, percussive rakes) are captured as ghost notes with "X" notation on the TAB staff and amber fretboard badges.
 * **BPM-Synchronized Playback Engine**:
   * Smoothly sweeps the red playhead cursor across the score at exact BPM tempos, triggering PCM reference audio samples (`E4`, `B3`, `G3`, `D3`, `A2`, `E2`) while lighting up fretboard badges with duration-aware highlighting.
 * **Local Session Persistence & JSON Storage**:

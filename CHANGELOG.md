@@ -4,6 +4,19 @@ All notable changes to the GuitarTuner app are documented in this file.
 
 ---
 
+## [1.2.1] - 2026-07-29
+
+### Ghost / Muted Note Detection & X Notation
+- **Transient Onset Detection in PitchEngine**: Added `_previousRms` tracking and `attackRmsThreshold` (0.025) to detect sharp amplitude attacks even when no stable pitch follows. When an onset is detected but the YIN algorithm finds no fundamental frequency, the frame is marked with `hasTransientAttack: true`.
+- **Real-Time Ghost Note Recording**: `recordGhostNote()` method captures percussive/muted string hits during both recording and live mic modes. Ghost notes are placed on string 4 (D) by default and stored with `isGhost: true`.
+- **Batch Recording Interleaving**: Ghost note timestamps recorded during a session are converted to beat positions and merged with frequency-derived notes after recording stops, then sorted by timeline position.
+- **X Notation on TAB Staff**: `TabNotationPainter` renders a bold "X" symbol for ghost notes instead of a fret number, matching standard guitar tablature notation.
+- **Amber Fretboard Badge**: `FretboardPainter` displays ghost notes with an amber (`#F59E0B`) glow badge with "X" text, visually distinct from green pitched notes.
+- **Playback Skipping**: Audio synthesis is skipped for ghost notes during playback since they have no pitch.
+- **Serialization**: `TabNote.toJson()` includes `isGhost` only when true; `fromJson()` parses it back. Added ghost note serialization test assertion.
+
+---
+
 ## [1.2.0] - 2026-07-29
 
 ### Professional Tablature Workspace Overhaul

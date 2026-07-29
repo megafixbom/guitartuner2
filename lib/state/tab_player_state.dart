@@ -47,7 +47,7 @@ enum Articulation {
   release,    // r  — release bend back down
   hammerOn,   // h  — hammer-on to next note
   pullOff,    // p  — pull-off to next note
-  vibrato,    // ~  — vibrato on this note
+  vibrato;    // ~  — vibrato on this note
 
   String get tabSymbol => switch (this) {
         Articulation.none => '',
@@ -120,40 +120,6 @@ class TabNote {
       orElse: () => Articulation.none,
     );
   }
-}
-}
-
-/// Represents a single note on a guitar tab staff (fret position & string index)
-class TabNote {
-  final int stringIndex; // 1 to 6 (1 is High E, 6 is Low E)
-  final int fret;        // 0 (open) to 24, or -1 for ghost/muted notes
-  final double position; // Beat position in track timeline
-  final NoteDuration duration; // Note duration type
-  final bool isGhost;    // True for muted/ghost notes (renders as X)
-
-  const TabNote({
-    required this.stringIndex,
-    required this.fret,
-    required this.position,
-    this.duration = NoteDuration.quarter,
-    this.isGhost = false,
-  });
-
-  Map<String, dynamic> toJson() => {
-        'stringIndex': stringIndex,
-        'fret': fret,
-        'position': position,
-        'duration': duration.label,
-        if (isGhost) 'isGhost': true,
-      };
-
-  factory TabNote.fromJson(Map<String, dynamic> json) => TabNote(
-        stringIndex: json['stringIndex'] as int,
-        fret: json['fret'] as int,
-        position: (json['position'] as num).toDouble(),
-        duration: _parseDuration((json['duration'] as String?) ?? '4'),
-        isGhost: (json['isGhost'] as bool?) ?? false,
-      );
 
   static NoteDuration _parseDuration(String label) {
     return NoteDuration.values.firstWhere(

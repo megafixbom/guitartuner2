@@ -81,9 +81,9 @@ class PitchEngine {
   final List<double> _pitchHistory = [];
   static const int medianWindowSize = 5;
 
-  // Hold-Green In-Tune Latch Timer (Locks green "In Tune" status for 0.5 seconds)
+  // Hold-Green In-Tune Latch Timer (Locks green "In Tune" status for 2.5 seconds)
   DateTime? _lastInTuneTime;
-  static const Duration inTuneHoldDuration = Duration(milliseconds: 500);
+  static const Duration inTuneHoldDuration = Duration(milliseconds: 2500);
 
   // Filtering states
   double? _prevFrequency;

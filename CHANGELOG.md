@@ -4,6 +4,24 @@ All notable changes to the GuitarTuner app are documented in this file.
 
 ---
 
+## [1.1.1] - 2026-07-29
+
+### Guitar Tuner Fixes
+- **In-Tune Hold Latch Duration**: Extended from 500ms to 2500ms to match the documented value, providing a smoother and more user-friendly in-tune hold experience.
+- **YIN Algorithm Bounds Safety**: Added assertion to verify audio buffer size is sufficient for YIN difference computation, preventing silent out-of-bounds access.
+- **In-Tune Comment Consistency**: Fixed conflicting comments across `pitch_engine.dart` regarding the latch duration.
+
+### Tablature Improvements
+- **Side-Effect Removal in `build()`**: Moved `_playheadController.duration` setting out of the `build()` method into a tracked `_updatePlayheadDuration()` helper that only updates when BPM or total measures actually change.
+- **Standard Notation Y-Position Fix**: Corrected inverted Y-position mapping in `TabNotationPainter` so that higher-pitch strings (String 1, E4) now render near the top of the staff and lower-pitch strings (String 6, E2) render lower, following proper music engraving conventions.
+- **Dynamic Measure Rendering**: `TabNotationPainter` now dynamically computes measure widths and barline counts from the actual `measures` list instead of hardcoding 4 measures. Added guard for empty measures.
+- **Recording Beat Mapping Fix**: `_processBatchRecordedFrequencies()` now spreads recorded frequency samples across the actual recording duration (in beats at the current BPM) instead of always using a fixed 16-beat spread.
+- **Dynamic `seekTo` Clamping**: Playhead position now clamps to `totalMeasures * 4.0` instead of hardcoded `16.0`, supporting variable-length recordings.
+- **Proper Timer-Based Recording Clock**: Replaced dead-code `updateRecordingTimer()` setter with a `Timer.periodic` that fires every 100ms during recording, computing elapsed seconds from the actual recording start time.
+- **Recording Timer Cleanup**: `toggleLiveMicMode()` and `toggleRecording()` now properly cancel the recording timer. `dispose()` also cancels any active timer.
+
+---
+
 ## [1.1.0] - 2026-07-28
 
 ### 🎼 Interactive Guitar Pro Tab Workspace (`tab_player_screen.dart`)

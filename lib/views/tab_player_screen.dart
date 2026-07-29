@@ -16,6 +16,8 @@ class TabPlayerScreen extends ConsumerStatefulWidget {
 class _TabPlayerScreenState extends ConsumerState<TabPlayerScreen>
     with SingleTickerProviderStateMixin {
   late AnimationController _playheadController;
+  double _lastBpm = 0.0;
+  int _lastTotalMeasures = 0;
 
   @override
   void initState() {
@@ -27,13 +29,24 @@ class _TabPlayerScreenState extends ConsumerState<TabPlayerScreen>
 
     _playheadController.addListener(() {
       if (mounted) {
-        final state = ref.read(tabPlayerProvider);
-        if (state.isPlaying) {
-          final double newPos = _playheadController.value * 16.0;
+        final tabState = ref.read(tabPlayerProvider);
+        if (tabState.isPlaying) {
+          final double totalBeats = tabState.totalMeasures * 4.0;
+          final double newPos = _playheadController.value * totalBeats;
           ref.read(tabPlayerProvider.notifier).seekTo(newPos);
         }
       }
     });
+  }
+
+  void _updatePlayheadDuration(double bpm, int totalMeasures) {
+    if (bpm != _lastBpm || totalMeasures != _lastTotalMeasures) {
+      _lastBpm = bpm;
+      _lastTotalMeasures = totalMeasures;
+      final double totalBeats = totalMeasures * 4.0;
+      final double durationSeconds = (totalBeats / (bpm / 60.0));
+      _playheadController.duration = Duration(milliseconds: (durationSeconds * 1000).round());
+    }
   }
 
   @override
@@ -51,9 +64,9 @@ class _TabPlayerScreenState extends ConsumerState<TabPlayerScreen>
     final isRecording = ref.watch(tabPlayerProvider.select((s) => s.isRecording));
     final recordingDurationSeconds = ref.watch(tabPlayerProvider.select((s) => s.recordingDurationSeconds));
     final waveformLevels = ref.watch(tabPlayerProvider.select((s) => s.waveformLevels));
+    final totalMeasures = ref.watch(tabPlayerProvider.select((s) => s.totalMeasures));
 
-    final double durationSeconds = (16.0 / (currentBpm / 60.0));
-    _playheadController.duration = Duration(milliseconds: (durationSeconds * 1000).round());
+    _updatePlayheadDuration(currentBpm, totalMeasures);
 
     // Sync playhead animation controller state
     if (isPlaying && !_playheadController.isAnimating) {
@@ -435,9 +448,12 @@ class TabNotationPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
+    if (measures.isEmpty) return;
+
     const double startX = 50.0;
     final double availableWidth = size.width - startX;
-    final double measureWidth = availableWidth / 4;
+    final int measureCount = measures.length;
+    final double measureWidth = availableWidth / measureCount;
 
     // --- Section 1: Standard 5-Line Musical Notation Staff (Black Engraving) ---
     final notationLinePaint = Paint()
@@ -517,11 +533,11 @@ class TabNotationPainter extends CustomPainter {
       fontWeight: FontWeight.bold,
     );
 
-    for (int m = 0; m <= 4; m++) {
+    for (int m = 0; m <= measureCount; m++) {
       final x = startX + (m * measureWidth);
       canvas.drawLine(Offset(x, notationTopY), Offset(x, tabTopY + (5 * tabSpacing)), barlinePaint);
 
-      if (m < 4) {
+      if (m < measureCount) {
         final barSpan = TextSpan(text: '${m + 1}', style: barNumberStyle);
         final barPainter = TextPainter(text: barSpan, textDirection: TextDirection.ltr);
         barPainter.layout();
@@ -559,7 +575,8 @@ class TabNotationPainter extends CustomPainter {
         fretPainter.paint(canvas, Offset(noteX - 4, tabY - 8));
 
         // Standard Musical Notation Head & Stem
-        final double notationY = notationTopY + (3 * notationSpacing) - (note.stringIndex * 3.5);
+        // String 1 (highest) at top of staff, String 6 (lowest) below staff
+        final double notationY = notationTopY + (note.stringIndex * 3.5);
         canvas.drawCircle(Offset(noteX, notationY), 4.5, noteHeadPaint);
         canvas.drawLine(Offset(noteX + 4, notationY), Offset(noteX + 4, notationY - 18), noteStemPaint);
       }

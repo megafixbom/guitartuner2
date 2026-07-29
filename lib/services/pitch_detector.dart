@@ -69,6 +69,8 @@ class PitchDetector {
     for (tau = 0; tau < _yinBuffer.length; tau++) {
       _yinBuffer[tau] = 0;
     }
+    assert(audioBuffer.length >= 2 * _yinBuffer.length - 1,
+        'Audio buffer too small for YIN computation');
     for (tau = 1; tau < _yinBuffer.length; tau++) {
       for (index = 0; index < _yinBuffer.length; index++) {
         delta = audioBuffer[index] - audioBuffer[index + tau];

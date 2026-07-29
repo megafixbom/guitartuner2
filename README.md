@@ -13,20 +13,20 @@ Under the hood, the app features an optimized digital signal processing (DSP) pi
 * **Spring Physics Needle Gauge**: Smooth centering dial utilizing Flutter's `SpringSimulation` to eliminate erratic needle jump.
 * **Interactive Headstock & LED Level Meter**: Stylized acoustic headstock interface coupled with a 12-dot hardware LED audio level meter showing real-time LUFS and dBFS sound intensity below the headstock.
 * **Isolate Worker & Ring Buffer**: YIN pitch-detection engine runs inside a dedicated background Dart Isolate fed by a zero-allocation circular `FloatRingBuffer`.
-* **Hardware Noise Gating**: Disables hardware AGC/echo cancellation artifacts to ensure pure tone readings with strict vocal gating and $\pm1.5$ cents dead-zone locking.
+* **Hardware Noise Gating**: Disables hardware AGC/echo cancellation artifacts to ensure pure tone readings with strict vocal gating and $\pm3.5$ cents dead-zone locking with a 2.5-second in-tune hold latch for smooth user feedback.
 
 ### 🎼 2. Guitar Pro-Style Interactive Tab Workspace (`TabPlayerScreen`)
 * **Parchment White Score Sheet Canvas**:
   * Crisp white sheet music background (`#FFFFFF`) with elevation paper drop shadows.
-  * Standard 5-line musical notation staff with a bold black treble clef (`🎼`).
-  * Traditional 6-line guitar TAB staff with vertical **T-A-B** logo, string labels (`e, B, G, D, A, E`), measure dividers (`1, 2, 3, 4`), and fret numbers inside white background cutouts.
-  * Iconic **Guitar Pro red playhead line & top pointer arrow** (`#EF4444`).
+  * Standard 5-line musical notation staff with properly ordered string mapping (high strings near top of staff, low strings lower).
+  * Traditional 6-line guitar TAB staff with vertical **T-A-B** logo, string labels (`e, B, G, D, A, E`), and dynamically computed measure dividers.
+  * Fret numbers inside white background cutouts with iconic **Guitar Pro red playhead line & top pointer arrow** (`#EF4444`).
 * **15-Fret Rosewood Guitar Visualizer**:
   * Detailed rosewood neck texture with 12-TET logarithmic fret wire scaling, bone nut (`fret 0`), inlay markers, and proportional steel string gauges.
   * Glowing emerald LED finger position badges (`#10B981`) that illuminate dynamically on active notes during playback.
 * **Live Mic Recording & Pitch Transcription**:
-  * Tactile red glowing **Record Button** (`Icons.fiber_manual_record`), live timer readout (`REC 0.0s`), and a 16-bar animated audio waveform equalizer bar.
-  * Automatic note transcription converting raw microphone frequencies ($70\text{ Hz}$ to $400\text{ Hz}$) into exact 6-string guitar coordinates (strings 1–6, frets 0–24).
+  * Tactile red glowing **Record Button** (`Icons.fiber_manual_record`), live timer readout (`REC 0.0s`) with a 100ms-resolution recording clock, and a 16-bar animated audio waveform equalizer bar.
+  * Automatic note transcription converting raw microphone frequencies ($70\text{ Hz}$ to $400\text{ Hz}$) into exact 6-string guitar coordinates (strings 1–6, frets 0–24), with proper beat-mapping scaled to the actual recording duration.
 * **BPM-Synchronized Playback Engine**:
   * Smoothly sweeps the red playhead cursor across the score at exact BPM tempos, triggering PCM reference audio sample tones (`E4`, `B3`, `G3`, `D3`, `A2`, `E2`) sequentially while lighting up fretboard badges.
 * **Local Session Persistence & JSON Storage**:

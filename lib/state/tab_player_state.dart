@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:audioplayers/audioplayers.dart';
 
@@ -123,11 +124,16 @@ class TabPlayerNotifier extends StateNotifier<TabPlayerState> {
   final Set<double> _triggeredBeatPositions = {};
   final List<double> _recordedFrequencyBuffer = [];
   double _lastQuantizedPos = -1.0;
+  Timer? _recordingTimer;
+  DateTime? _recordingStartTime;
 
   void toggleLiveMicMode() {
     final bool newLiveMic = !state.isLiveMicMode;
     if (newLiveMic) {
       _synthAudioPlayer.stop();
+      _recordingTimer?.cancel();
+      _recordingTimer = null;
+      _recordingStartTime = null;
     }
     state = state.copyWith(
       isLiveMicMode: newLiveMic,
@@ -229,6 +235,14 @@ class TabPlayerNotifier extends StateNotifier<TabPlayerState> {
       _recordedFrequencyBuffer.clear();
       _lastQuantizedPos = -1.0;
       _synthAudioPlayer.stop();
+      _recordingStartTime = DateTime.now();
+      _recordingTimer?.cancel();
+      _recordingTimer = Timer.periodic(const Duration(milliseconds: 100), (_) {
+        if (_recordingStartTime != null && state.isRecording) {
+          final elapsed = DateTime.now().difference(_recordingStartTime!).inMilliseconds / 1000.0;
+          state = state.copyWith(recordingDurationSeconds: elapsed);
+        }
+      });
       state = state.copyWith(
         isRecording: true,
         isPlaying: true,
@@ -237,6 +251,8 @@ class TabPlayerNotifier extends StateNotifier<TabPlayerState> {
         waveformLevels: [],
       );
     } else {
+      _recordingTimer?.cancel();
+      _recordingTimer = null;
       _processBatchRecordedFrequencies();
       _synthAudioPlayer.stop();
       state = state.copyWith(
@@ -250,12 +266,13 @@ class TabPlayerNotifier extends StateNotifier<TabPlayerState> {
     if (_recordedFrequencyBuffer.isEmpty) return;
 
     final List<TabNote> batchNotes = [];
-    final double beatStep = 16.0 / math.max(1, _recordedFrequencyBuffer.length);
+    final double totalBeats = (state.recordingDurationSeconds * state.currentBpm) / 60.0;
+    final double beatStep = totalBeats / math.max(1, _recordedFrequencyBuffer.length);
 
     for (int i = 0; i < _recordedFrequencyBuffer.length; i++) {
       final double frequency = _recordedFrequencyBuffer[i];
       final double rawPos = i * beatStep;
-      final double quantizedPos = ((rawPos * 4.0).round() / 4.0).clamp(0.0, 15.75);
+      final double quantizedPos = ((rawPos * 4.0).round() / 4.0).clamp(0.0, totalBeats);
 
       final note = _solveGuitarCoordinate(frequency, quantizedPos);
       if (note != null) {
@@ -264,13 +281,16 @@ class TabPlayerNotifier extends StateNotifier<TabPlayerState> {
     }
 
     if (batchNotes.isNotEmpty) {
-      final updatedMeasures = [
-        TabMeasure(number: 1, notes: batchNotes.where((n) => n.position < 4.0).toList()),
-        TabMeasure(number: 2, notes: batchNotes.where((n) => n.position >= 4.0 && n.position < 8.0).toList()),
-        TabMeasure(number: 3, notes: batchNotes.where((n) => n.position >= 8.0 && n.position < 12.0).toList()),
-        TabMeasure(number: 4, notes: batchNotes.where((n) => n.position >= 12.0).toList()),
-      ];
-      state = state.copyWith(measures: updatedMeasures);
+      final measureCount = (totalBeats / 4.0).ceil().clamp(1, 16).toInt();
+      final updatedMeasures = List<TabMeasure>.generate(measureCount, (i) {
+        final startBeat = i * 4.0;
+        final endBeat = startBeat + 4.0;
+        return TabMeasure(
+          number: i + 1,
+          notes: batchNotes.where((n) => n.position >= startBeat && n.position < endBeat).toList(),
+        );
+      });
+      state = state.copyWith(measures: updatedMeasures, totalMeasures: measureCount);
       saveSessionToDevice();
     }
   }
@@ -312,12 +332,6 @@ class TabPlayerNotifier extends StateNotifier<TabPlayerState> {
     return false;
   }
 
-  void updateRecordingTimer(double elapsedSeconds) {
-    if (state.isRecording) {
-      state = state.copyWith(recordingDurationSeconds: elapsedSeconds);
-    }
-  }
-
   void pushWaveformLevel(double rmsLevel) {
     if (state.isRecording || state.isLiveMicMode) {
       final updatedWaveform = List<double>.from(state.waveformLevels)..add(rmsLevel);
@@ -353,8 +367,10 @@ class TabPlayerNotifier extends StateNotifier<TabPlayerState> {
       _triggeredBeatPositions.clear();
     }
 
+    final double totalBeats = state.totalMeasures * 4.0;
+
     // Clamp the position to prevent out-of-bounds indexing
-    final clampedPosition = position.clamp(0.0, 16.0);
+    final clampedPosition = position.clamp(0.0, totalBeats);
 
     // Debounce widget rebuilds by setting threshold to 0.05 beats
     if ((clampedPosition - state.playheadPosition).abs() >= 0.05) {
@@ -390,6 +406,7 @@ class TabPlayerNotifier extends StateNotifier<TabPlayerState> {
 
   @override
   void dispose() {
+    _recordingTimer?.cancel();
     _synthAudioPlayer.dispose();
     super.dispose();
   }

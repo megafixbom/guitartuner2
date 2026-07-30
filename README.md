@@ -128,3 +128,34 @@ Run all tests using:
 ```bash
 flutter test
 ```
+
+---
+
+## 📚 Documentation
+
+Comprehensive documentation available in multiple formats:
+
+| Document | Markdown | PDF | Word |
+|----------|----------|-----|------|
+| **User Guide** | [View](docs/USER_GUIDE_WITH_SCREENSHOTS.md) | [Download](docs/pdf/USER_GUIDE_WITH_SCREENSHOTS.pdf) | [Download](docs/docx/USER_GUIDE_WITH_SCREENSHOTS.docx) |
+| **BPM Detection** | [View](BPM_DETECTION_GUIDE.md) | [Download](docs/pdf/BPM_DETECTION_GUIDE.pdf) | [Download](docs/docx/BPM_DETECTION_GUIDE.docx) |
+| **Chord Detection** | [View](CHORD_DETECTION_GUIDE.md) | [Download](docs/pdf/CHORD_DETECTION_GUIDE.pdf) | [Download](docs/docx/CHORD_DETECTION_GUIDE.docx) |
+| **Implementation Status** | [View](IMPLEMENTATION_STATUS.md) | [Download](docs/pdf/IMPLEMENTATION_STATUS.pdf) | [Download](docs/docx/IMPLEMENTATION_STATUS.docx) |
+
+### Screenshot Capture Status
+
+**📸 In Progress:** 10/30 screenshots captured
+
+See [docs/SCREENSHOT_GUIDE.md](docs/SCREENSHOT_GUIDE.md) for detailed capture instructions.
+
+**To generate PDF/DOCX from markdown:**
+```bash
+cd docs/scripts
+chmod +x *.sh
+./convert_to_pdf.sh    # Requires: pandoc
+./convert_to_docx.sh   # Requires: pandoc
+```
+
+**Requirements:**
+- `pandoc` (install: `brew install pandoc`)
+- `wkhtmltopdf` (optional, for better PDF quality: `brew install wkhtmltopdf`)

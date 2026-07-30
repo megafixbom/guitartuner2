@@ -4,6 +4,31 @@ All notable changes to the GuitarTuner app are documented in this file.
 
 ---
 
+## [1.5.0] — 2026-07-30
+
+### Automatic BPM Detection
+- **TempoDetector Service**: New `lib/services/tempo_detector.dart` implements automatic tempo detection using onset detection and IOI (inter-onset interval) histogram analysis.
+- **Spectral Flux Onset Detection**: Computes energy change between consecutive audio frames to detect note attacks and transients.
+- **IOI Histogram**: Builds histogram of time intervals between detected onsets, finds peaks corresponding to tempo candidates.
+- **Tempo Candidates**: Considers base tempo plus octave ambiguities (2x, 0.5x) to resolve half-time/double-time confusion.
+- **Beat Grid Generation**: Outputs synchronized beat timestamps for metronome integration.
+- **Audio Sample Buffer**: Records RMS levels at 100Hz during capture (max 30,000 samples = 5 minutes).
+- **BPM Range**: Detects 60-200 BPM with confidence threshold >0.4.
+- **UI Integration**: 
+  - BPM display shows green highlight + auto icon (✨) when tempo is auto-detected
+  - Tapping BPM display clears auto-tempo and reverts to manual tap tempo
+  - BPM +/- buttons still work for fine-tuning detected tempo
+- **State Integration**: `TabPlayerState.detectedTempo` field stores DetectedTempo object with bpm, beats array, time signature, and confidence.
+
+### Technical Details
+- **Onset Detection Function (ODF)**: Spectral flux with adaptive threshold (mean + 0.5*stddev)
+- **Peak Picking**: Non-maximum suppression with 100ms minimum inter-onset gap
+- **IOI Filtering**: Only considers intervals valid for 60-200 BPM range (0.3s - 1.0s)
+- **Histogram Bin Width**: 50ms bins for tempo candidate extraction
+- **Confidence Metric**: Ratio of onsets supporting the detected tempo vs total onsets
+
+---
+
 ## [1.4.0] — 2026-07-30
 
 ### Automatic Musical Key Detection

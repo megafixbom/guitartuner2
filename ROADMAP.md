@@ -23,7 +23,25 @@
 
 ---
 
-## Priority 1 — Short-Term (v1.4.0)
+## Priority 1 — Short-Term (v1.4.0 - v1.5.0)
+
+### ✅ Automatic BPM Detection (DONE v1.5.0)
+- [x] Spectral flux onset detection function
+- [x] IOI histogram for tempo candidates
+- [x] Beat grid generation
+- [x] TempoDetector service implementation
+- [x] UI integration with auto-tempo indicator
+- [x] Confidence threshold filtering (>0.4)
+
+### ✅ Key Signatures & Accidentals (DONE v1.4.0)
+- [x] Key signature display at left of each staff (sharps/flats)
+- [x] MusicalKey enum and DetectedKey model
+- [x] Automatic key detection from recorded notes using pitch class histograms
+- [x] Key scoring algorithm with major/minor profile matching
+- [x] DetectedKey display in toolbar with confidence percentage
+- [ ] `Accidental` enum (sharp, flat, natural, double sharp, double flat)
+- [ ] Accidentals rendering before individual note heads in notation
+- [ ] Key signature auto-detection from note frequencies
 
 ### Tuplets / Triplets
 - [ ] Add `Tuplet` data model (triplet, quintuplet, sextuplet)

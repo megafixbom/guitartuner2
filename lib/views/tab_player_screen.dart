@@ -15,6 +15,7 @@ class TabPlayerScreen extends ConsumerStatefulWidget {
 class _TabPlayerScreenState extends ConsumerState<TabPlayerScreen>
     with SingleTickerProviderStateMixin {
   late AnimationController _playheadController;
+  late ScrollController _scrollController;
   double _lastBpm = 0.0;
   int _lastTotalMeasures = 0;
 
@@ -25,6 +26,7 @@ class _TabPlayerScreenState extends ConsumerState<TabPlayerScreen>
       vsync: this,
       duration: const Duration(seconds: 8),
     );
+    _scrollController = ScrollController();
 
     _playheadController.addListener(() {
       if (mounted) {
@@ -33,7 +35,39 @@ class _TabPlayerScreenState extends ConsumerState<TabPlayerScreen>
           final double totalBeats = tabState.totalMeasures * 4.0;
           final double newPos = _playheadController.value * totalBeats;
           ref.read(tabPlayerProvider.notifier).seekTo(newPos);
+
+          // Auto-scroll to follow playhead
+          final measures = tabState.measures;
+          if (measures.isNotEmpty) {
+            const double minMeasureWidth = 120.0;
+            const double startX = 50.0;
+            final double playheadX = startX + (newPos * (minMeasureWidth / 4));
+            final currentScroll = _scrollController.hasClients
+                ? _scrollController.offset
+                : 0.0;
+            final viewWidth = MediaQuery.of(context).size.width - 48;
+            if (playheadX > currentScroll + viewWidth - 100 ||
+                playheadX < currentScroll + 100) {
+              _scrollController.animateTo(
+                (playheadX - viewWidth / 2).clamp(
+                    0.0,
+                    _scrollController.position.maxScrollExtent),
+                duration: const Duration(milliseconds: 300),
+                curve: Curves.easeInOut,
+              );
+            }
+          }
         }
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _playheadController.dispose();
+    _scrollController.dispose();
+    super.dispose();
+  }
       }
     });
   }
@@ -617,47 +651,59 @@ class _TabPlayerScreenState extends ConsumerState<TabPlayerScreen>
   }
 
   Widget _buildScoreCanvas() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
-      child: Container(
-        decoration: BoxDecoration(
-          color: _parchment,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: const Color(0xFFD6D3CC)),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.2),
-              blurRadius: 10,
-              offset: const Offset(0, 3),
-            ),
-          ],
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(10),
-          child: Consumer(
-            builder: (context, ref, child) {
-              final measures =
-                  ref.watch(tabPlayerProvider.select((s) => s.measures));
-              final playheadPosition =
-                  ref.watch(tabPlayerProvider.select((s) => s.playheadPosition));
-              return GestureDetector(
-                onTapUp: (details) {
-                  _handleScoreTap(details.localPosition, measures,
-                      context.size ?? Size.zero);
-                },
-                child: CustomPaint(
-                  painter: TabNotationPainter(
-                    measures: measures,
-                    playheadPosition: playheadPosition,
-                    showSelectionHint: false,
-                  ),
-                  child: const SizedBox.expand(),
+    return Consumer(
+      builder: (context, ref, child) {
+        final measures =
+            ref.watch(tabPlayerProvider.select((s) => s.measures));
+        final measureCount = measures.isEmpty ? 1 : measures.length;
+        const double minMeasureWidth = 120.0;
+        const double startX = 50.0;
+        final double totalWidth = startX + (measureCount * minMeasureWidth);
+
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+          child: Container(
+            decoration: BoxDecoration(
+              color: _parchment,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: const Color(0xFFD6D3CC)),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.2),
+                  blurRadius: 10,
+                  offset: const Offset(0, 3),
                 ),
-              );
-            },
+              ],
+            ),
+              child: ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: SingleChildScrollView(
+                controller: _scrollController,
+                scrollDirection: Axis.horizontal,
+                child: GestureDetector(
+                  onTapUp: (details) {
+                    _handleScoreTap(details.localPosition, measures,
+                        Size(totalWidth, 200));
+                  },
+                  child: SizedBox(
+                    width: totalWidth,
+                    height: 200,
+                    child: CustomPaint(
+                      painter: TabNotationPainter(
+                        measures: measures,
+                        playheadPosition: ref.watch(
+                            tabPlayerProvider.select((s) => s.playheadPosition)),
+                        showSelectionHint: false,
+                        minMeasureWidth: minMeasureWidth,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
@@ -666,9 +712,9 @@ class _TabPlayerScreenState extends ConsumerState<TabPlayerScreen>
     if (measures.isEmpty) return;
 
     const double startX = 50.0;
-    final double availableWidth = canvasSize.width - startX;
+    const double minMeasureWidth = 120.0;
     final int measureCount = measures.length;
-    final double measureWidth = availableWidth / measureCount;
+    final double measureWidth = minMeasureWidth;
     const double tabTopY = 105.0;
     const double tabSpacing = 13.0;
 
@@ -807,11 +853,13 @@ class TabNotationPainter extends CustomPainter {
   final List<TabMeasure> measures;
   final double playheadPosition;
   final bool showSelectionHint;
+  final double minMeasureWidth;
 
   TabNotationPainter({
     required this.measures,
     required this.playheadPosition,
     this.showSelectionHint = false,
+    this.minMeasureWidth = 120.0,
   });
 
   @override
@@ -819,9 +867,9 @@ class TabNotationPainter extends CustomPainter {
     if (measures.isEmpty) return;
 
     const double startX = 50.0;
-    final double availableWidth = size.width - startX;
     final int measureCount = measures.length;
-    final double measureWidth = availableWidth / measureCount;
+    final double measureWidth = minMeasureWidth;
+    final double totalWidth = startX + (measureCount * measureWidth);
     const double notationTopY = 22.0;
     const double notationSpacing = 9.0;
     const double tabTopY = 88.0;
@@ -835,7 +883,7 @@ class TabNotationPainter extends CustomPainter {
 
     for (int i = 0; i < 5; i++) {
       final y = notationTopY + (i * notationSpacing);
-      canvas.drawLine(Offset(startX, y), Offset(size.width, y), staffLinePaint);
+      canvas.drawLine(Offset(startX, y), Offset(totalWidth, y), staffLinePaint);
     }
 
     final tabLinePaint = Paint()
@@ -851,7 +899,7 @@ class TabNotationPainter extends CustomPainter {
 
     for (int i = 0; i < 6; i++) {
       final y = tabTopY + (i * tabSpacing);
-      canvas.drawLine(Offset(startX, y), Offset(size.width, y), tabLinePaint);
+      canvas.drawLine(Offset(startX, y), Offset(totalWidth, y), tabLinePaint);
       final span = TextSpan(text: stringNames[i], style: stringLabelStyle);
       final tp = TextPainter(text: span, textDirection: TextDirection.ltr);
       tp.layout();

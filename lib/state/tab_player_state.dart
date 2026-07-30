@@ -468,7 +468,7 @@ class TabPlayerNotifier extends StateNotifier<TabPlayerState> {
     }
 
     if (batchNotes.isNotEmpty) {
-      final measureCount = (totalBeats / 4.0).ceil().clamp(1, 16).toInt();
+      final measureCount = (totalBeats / 4.0).ceil().clamp(1, 100).toInt();
       final updatedMeasures = List<TabMeasure>.generate(measureCount, (i) {
         final startBeat = i * 4.0;
         final endBeat = startBeat + 4.0;

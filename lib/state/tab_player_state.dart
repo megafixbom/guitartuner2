@@ -378,7 +378,16 @@ class TabPlayerNotifier extends StateNotifier<TabPlayerState> {
   final Set<double> _triggeredBeatPositions = {};
   final List<double> _recordedFrequencyBuffer = [];
   final List<double> _ghostNoteTimestamps = [];
-  final List<double> _recordedAudioSamples = []; // Raw audio for tempo detection
+  /// Unified audio sample buffer used by ALL detection systems:
+  /// - Tempo/BPM detection (tempo_detector.dart)
+  /// - Chord detection (chord_detector.dart)
+  /// - Key detection (pitch class histogram in this file)
+  /// TODO (Future - v1.8.0): Add scale detection for lead sections
+  /// - Detect scales from monophonic passages (major, minor, pentatonic, modes)
+  /// - Display "Scale:" overlay in toolbar next to detected key
+  /// - Highlight scale vs non-scale notes on fretboard during playback
+  /// - Suggest compatible scales for detected chord progression
+  final List<double> _recordedAudioSamples = [];
   double _lastQuantizedPos = -1.0;
   Timer? _recordingTimer;
   DateTime? _recordingStartTime;

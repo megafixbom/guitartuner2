@@ -8,6 +8,7 @@ All notable changes to the GuitarTuner app are documented in this file.
 
 ### Multi-Pitch Chord Detection
 - **ChordDetector Service**: New `lib/services/chord_detector.dart` implements polyphonic chord recognition from audio input.
+- **Unified Recording**: Single audio buffer feeds all detection systems (key, tempo, chords) - **NOT separate recordings**.
 - **Spectral Peak Detection**: Finds 2-6 simultaneous frequency peaks using magnitude spectrum analysis.
 - **Pitch Class Extraction**: Converts detected frequencies to chroma (12 pitch classes).
 - **Chord Template Matching**: Compares pitch classes against 12 chord templates:
@@ -30,6 +31,38 @@ All notable changes to the GuitarTuner app are documented in this file.
 - **Max Polyphony**: 6 notes (guitar strings)
 - **Smoothing Window**: Compares with previous chord in progression
 - **Display**: Blue pills (#3B82F6) positioned above each measure's detected chord
+
+---
+
+## [Future] — TODO
+
+### v1.7.0: Smart Metronome
+- [ ] Click track synced to detected beat grid (from tempo_detector)
+- [ ] Subdivision options (quarter, eighth, sixteenth)
+- [ ] Accent on beat 1 (downbeat emphasis)
+- [ ] Sound selector (woodblock, beep, stick)
+- [ ] Volume control
+
+### v1.8.0: Scale Detection for Lead Sections
+- [ ] Analyze monophonic passages for scale patterns
+- [ ] Detect: major, minor, pentatonic, blues, modes (Dorian, Phrygian, etc.)
+- [ ] Display "Scale: A Minor Pentatonic" overlay in toolbar
+- [ ] Color-code notes on fretboard (green = scale tone, red = non-scale)
+- [ ] Suggest compatible scales for detected chord progression
+- [ ] Arpeggio detection (outline chord tones in lead playing)
+
+### v1.9.0: Pitch Shifting / Key Transposition
+- [ ] Phase vocoder implementation
+- [ ] Transpose ±12 semitones without tempo change
+- [ ] Preserve formants (natural timbre)
+- [ ] Transpose entire recording or real-time monitoring
+
+### v2.0.0: Lyric Transcription
+- [ ] Whisper API / Google Speech-to-Text integration
+- [ ] Vocal detection (separate from guitar)
+- [ ] Timestamp-aligned lyrics
+- [ ] Karaoke-style highlighting during playback
+- [ ] Export as LRC file
 
 ---
 

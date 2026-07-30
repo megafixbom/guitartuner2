@@ -4,7 +4,7 @@
 
 ---
 
-## Completed (v1.0.0 - v1.3.0)
+## Completed (v1.0.0 - v1.6.0)
 
 - [x] Real-time guitar tuner with YIN algorithm, spring needle gauge, isolate worker
 - [x] Guitar Pro-style tab workspace with dual staff (standard notation + TAB)
@@ -20,6 +20,10 @@
 - [x] Articulation symbols (slideUp, slideDown, bend, release, hammerOn, pullOff, vibrato)
 - [x] Articulation connector curves (slide lines, H/P slurs) in both staves
 - [x] Articulation selector chip in toolbar
+- [x] **Key detection** (v1.4.0) — Pitch class histogram + major/minor profile matching
+- [x] **BPM detection** (v1.5.0) — Spectral flux onset detection + IOI histogram
+- [x] **Chord detection** (v1.6.0) — Multi-pitch spectral peaks + chord template matching
+- [x] **Unified recording** — Single audio buffer feeds key + tempo + chord detection
 
 ---
 
@@ -205,6 +209,38 @@
 - [ ] Lyrics line below standard notation
 - [ ] Fingerpicking notation (p i m a labels)
 - [ ] Slide guitar / bottleneck mode
+
+---
+
+## TODO — Future Implementations (Not Started)
+
+### v1.7.0 — Smart Metronome
+- [ ] Click track synced to `DetectedTempo.beats` grid
+- [ ] Subdivision selector (quarter, eighth, sixteenth notes)
+- [ ] Accent pattern (beat 1 emphasis for 4/4 time)
+- [ ] Sound selector: woodblock, beep, drum stick
+- [ ] Volume slider with mute toggle
+
+### v1.8.0 — Scale Detection for Lead Sections
+- [ ] Analyze monophonic passages for scale patterns
+- [ ] Detect: major, minor, pentatonic, blues, modes (Dorian, Phrygian, Lydian, Mixolydian, Locrian)
+- [ ] Display "Scale: A Minor Pentatonic" in toolbar next to key chip
+- [ ] Color-code fretboard: green = scale tone, red = non-scale tone
+- [ ] Suggest compatible scales for detected chord progression
+- [ ] Arpeggio detection (outline chord tones in solo playing)
+
+### v1.9.0 — Pitch Shifting / Key Transposition
+- [ ] Phase vocoder for pitch shifting (independent of tempo)
+- [ ] Transpose entire recording ±12 semitones
+- [ ] Preserve formants (natural timbre, no "chipmunk" effect)
+- [ ] Real-time pitch shift monitoring during recording
+
+### v2.0.0 — Lyric Transcription
+- [ ] Whisper API or Google Speech-to-Text integration
+- [ ] Vocal activity detection (separate guitar from vocals)
+- [ ] Timestamp-aligned lyrics (word-level sync)
+- [ ] Karaoke-style highlighting during playback
+- [ ] Export as LRC file (LyRiCs format)
 
 ---
 

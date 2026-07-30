@@ -10,6 +10,11 @@ import 'dart:typed_data';
 /// 4. Build IOI histogram
 /// 5. Find most common IOI → convert to BPM
 /// 6. Refine with beat grid estimation
+///
+/// TODO (Future - v1.7.0): Add scale/mode detection for lead sections
+/// - Analyze note distribution against scale patterns (major, minor, pentatonic, modes)
+/// - Display detected scale overlay during playback
+/// - Highlight scale notes on fretboard vs non-scale notes
 class TempoDetector {
   final int sampleRate;
   final double minBpm;

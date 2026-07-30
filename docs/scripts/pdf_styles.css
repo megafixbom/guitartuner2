@@ -1,0 +1,216 @@
+/* PDF Styles for GuitarTuner Documentation */
+
+/* Base Document Styles */
+body {
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: 11pt;
+  line-height: 1.6;
+  color: #1E293B;
+  margin: 0;
+  padding: 0;
+}
+
+/* Page Layout */
+@page {
+  margin: 2.5cm 2cm;
+  size: A4;
+}
+
+/* Headings */
+h1 {
+  font-size: 24pt;
+  color: #0F172A;
+  border-bottom: 2px solid #3B82F6;
+  padding-bottom: 10pt;
+  page-break-after: avoid;
+}
+
+h2 {
+  font-size: 18pt;
+  color: #1E40AF;
+  margin-top: 24pt;
+  page-break-after: avoid;
+}
+
+h3 {
+  font-size: 14pt;
+  color: #3B82F6;
+  page-break-after: avoid;
+}
+
+h4 {
+  font-size: 12pt;
+  color: #64748B;
+  font-weight: bold;
+}
+
+/* Code Blocks */
+pre, code {
+  font-family: "Fira Code", "Consolas", "Monaco", monospace;
+  font-size: 10pt;
+  background-color: #F1F5F9;
+  border: 1px solid #E2E8F0;
+  border-radius: 4px;
+  padding: 2pt 6pt;
+}
+
+pre {
+  padding: 12pt;
+  overflow-x: auto;
+  border-left: 4px solid #3B82F6;
+}
+
+/* Tables */
+table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 16pt 0;
+  font-size: 10pt;
+}
+
+th, td {
+  border: 1px solid #CBD5E1;
+  padding: 8pt 12pt;
+  text-align: left;
+}
+
+th {
+  background-color: #EFF6FF;
+  font-weight: bold;
+  color: #1E40AF;
+}
+
+tr:nth-child(even) {
+  background-color: #F8FAFC;
+}
+
+/* Images */
+img {
+  max-width: 100%;
+  height: auto;
+  page-break-inside: avoid;
+  margin: 16pt 0;
+}
+
+figure {
+  text-align: center;
+  margin: 16pt 0;
+  page-break-inside: avoid;
+}
+
+figcaption {
+  font-size: 9pt;
+  color: #64748B;
+  font-style: italic;
+  margin-top: 8pt;
+}
+
+/* Blockquotes */
+blockquote {
+  border-left: 4px solid #3B82F6;
+  margin: 16pt 0;
+  padding-left: 16pt;
+  background-color: #EFF6FF;
+  padding: 12pt 16pt;
+  border-radius: 4px;
+}
+
+/* Lists */
+ul, ol {
+  padding-left: 24pt;
+}
+
+li {
+  margin: 6pt 0;
+}
+
+/* Links */
+a {
+  color: #3B82F6;
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+/* Table of Contents */
+#toc {
+  background-color: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  padding: 16pt;
+  border-radius: 4px;
+  margin-bottom: 24pt;
+}
+
+#toc a {
+  color: #475569;
+}
+
+/* Special Elements */
+.note {
+  background-color: #FEF3C7;
+  border-left: 4px solid #F59E0B;
+  padding: 12pt;
+  margin: 16pt 0;
+  border-radius: 4px;
+}
+
+.warning {
+  background-color: #FEE2E2;
+  border-left: 4px solid #EF4444;
+  padding: 12pt;
+  margin: 16pt 0;
+  border-radius: 4px;
+}
+
+/* Print-Only Elements */
+@media print {
+  .no-print {
+    display: none;
+  }
+  
+  /* Force page breaks before major sections */
+  h2 {
+    page-break-before: auto;
+  }
+  
+  /* Prevent orphans */
+  h1, h2, h3, h4 {
+    page-break-after: avoid;
+  }
+}
+
+/* Header/Footer */
+@page {
+  @top-center {
+    content: string(title);
+    font-size: 9pt;
+    color: #64748B;
+  }
+  
+  @bottom-center {
+    content: "Page " counter(page) " of " counter(pages);
+    font-size: 9pt;
+    color: #64748B;
+  }
+  
+  @bottom-left {
+    content: "GuitarTuner v1.6.0";
+    font-size: 8pt;
+    color: #94A3B8;
+  }
+}
+
+/* Syntax Highlighting (for code blocks) */
+.sourceCode {
+  background-color: #1E293B;
+  color: #E2E8F0;
+}
+
+.sourceCode .kw { color: #F472B6; } /* keyword */
+.sourceCode .dt { color: #60A5FA; } /* datatype */
+.sourceCode .dv { color: #34D399; } /* decimal */
+.sourceCode .st { color: #A78BFA; } /* string */
+.sourceCode .co { color: #94A3B8; font-style: italic; } /* comment */
+.sourceCode .ot { color: #FBBF24; } /* operator */

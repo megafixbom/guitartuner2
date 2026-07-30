@@ -41,40 +41,173 @@ enum NoteDuration {
 
 enum Articulation {
   none,
-  slideUp,    // /  — slide to higher fret
-  slideDown,  // \  — slide to lower fret
-  bend,       // b  — bend string up
-  release,    // r  — release bend back down
-  hammerOn,   // h  — hammer-on to next note
-  pullOff,    // p  — pull-off to next note
-  vibrato;    // ~  — vibrato on this note
+  slideUp,
+  slideDown,
+  bend,
+  release,
+  hammerOn,
+  pullOff,
+  vibrato;
 
-  String get tabSymbol => switch (this) {
-        Articulation.none => '',
-        Articulation.slideUp => '/',
-        Articulation.slideDown => r'\',
-        Articulation.bend => 'b',
-        Articulation.release => 'r',
-        Articulation.hammerOn => 'h',
-        Articulation.pullOff => 'p',
-        Articulation.vibrato => '~',
-      };
+  String get tabSymbol {
+    switch (this) {
+      case Articulation.slideUp:
+        return '/';
+      case Articulation.slideDown:
+        return '\\';
+      case Articulation.bend:
+        return 'b';
+      case Articulation.release:
+        return 'r';
+      case Articulation.hammerOn:
+        return 'h';
+      case Articulation.pullOff:
+        return 'p';
+      case Articulation.vibrato:
+        return '~';
+      case Articulation.none:
+        return '';
+    }
+  }
 
-  String get label => switch (this) {
-        Articulation.none => '—',
-        Articulation.slideUp => 'Slide /\u2191',
-        Articulation.slideDown => 'Slide \\\u2193',
-        Articulation.bend => 'Bend',
-        Articulation.release => 'Release',
-        Articulation.hammerOn => 'Hammer-on',
-        Articulation.pullOff => 'Pull-off',
-        Articulation.vibrato => 'Vibrato',
-      };
+  String get label {
+    switch (this) {
+      case Articulation.slideUp:
+        return 'Slide Up';
+      case Articulation.slideDown:
+        return 'Slide Down';
+      case Articulation.bend:
+        return 'Bend';
+      case Articulation.release:
+        return 'Release';
+      case Articulation.hammerOn:
+        return 'Hammer-On';
+      case Articulation.pullOff:
+        return 'Pull-Off';
+      case Articulation.vibrato:
+        return 'Vibrato';
+      case Articulation.none:
+        return 'None';
+    }
+  }
 
-  bool get isConnector => this == Articulation.slideUp ||
-      this == Articulation.slideDown ||
-      this == Articulation.hammerOn ||
-      this == Articulation.pullOff;
+  bool get isConnector {
+    return this == Articulation.slideUp ||
+        this == Articulation.slideDown ||
+        this == Articulation.hammerOn ||
+        this == Articulation.pullOff;
+  }
+}
+
+enum MusicalKey {
+  C,
+  Cs,
+  D,
+  Ds,
+  E,
+  F,
+  Fs,
+  G,
+  Gs,
+  A,
+  As,
+  B;
+
+  String get displayName {
+    switch (this) {
+      case MusicalKey.C:
+        return 'C';
+      case MusicalKey.Cs:
+        return 'C#';
+      case MusicalKey.D:
+        return 'D';
+      case MusicalKey.Ds:
+        return 'D#';
+      case MusicalKey.E:
+        return 'E';
+      case MusicalKey.F:
+        return 'F';
+      case MusicalKey.Fs:
+        return 'F#';
+      case MusicalKey.G:
+        return 'G';
+      case MusicalKey.Gs:
+        return 'G#';
+      case MusicalKey.A:
+        return 'A';
+      case MusicalKey.As:
+        return 'A#';
+      case MusicalKey.B:
+        return 'B';
+    }
+  }
+
+  static MusicalKey fromSemitones(int semitones) {
+    return MusicalKey.values[(semitones % 12 + 12) % 12];
+  }
+
+  int get semitones => index;
+}
+
+enum KeyMode { major, minor }
+
+class DetectedKey {
+  final MusicalKey tonic;
+  final KeyMode mode;
+  final double confidence;
+  final List<int> pitchClassHistogram;
+
+  const DetectedKey({
+    required this.tonic,
+    required this.mode,
+    required this.confidence,
+    required this.pitchClassHistogram,
+  });
+
+  String get displayName =>
+      '${tonic.displayName}${mode == KeyMode.minor ? "m" : ""}';
+
+  List<int> get accidentals {
+    final keySignatureMap = {
+      MusicalKey.C: 0,
+      MusicalKey.Cs: -7,
+      MusicalKey.D: -5,
+      MusicalKey.Ds: -4,
+      MusicalKey.E: -3,
+      MusicalKey.F: 1,
+      MusicalKey.Fs: 0,
+      MusicalKey.G: 6,
+      MusicalKey.Gs: -6,
+      MusicalKey.A: -4,
+      MusicalKey.As: -3,
+      MusicalKey.B: -2,
+    };
+    final offset = mode == KeyMode.minor ? 3 : 0;
+    final relativeTonic = (tonic.semitones - offset + 12) % 12;
+    final relativeKey = MusicalKey.fromSemitones(relativeTonic);
+    final fifths = keySignatureMap[relativeKey] ?? 0;
+
+    if (fifths == 0) return [];
+    if (fifths > 0) {
+      return List.generate(fifths, (i) => [11, 6, 1, 8, 3, 10, 5][i]);
+    } else {
+      return List.generate(-fifths, (i) => [3, 10, 5, 0, 7, 2, 9][i]);
+    }
+  }
+
+  DetectedKey copyWith({
+    MusicalKey? tonic,
+    KeyMode? mode,
+    double? confidence,
+    List<int>? pitchClassHistogram,
+  }) {
+    return DetectedKey(
+      tonic: tonic ?? this.tonic,
+      mode: mode ?? this.mode,
+      confidence: confidence ?? this.confidence,
+      pitchClassHistogram: pitchClassHistogram ?? this.pitchClassHistogram,
+    );
+  }
 }
 
 /// Represents a single note on a guitar tab staff (fret position & string index)
@@ -159,14 +292,15 @@ class TabPlayerState {
   final double recordingDurationSeconds;
   final List<double> waveformLevels;
   final double currentBpm;
-  final double playheadPosition; // Current beat position
+  final double playheadPosition;
   final int totalMeasures;
   final List<TabMeasure> measures;
   final bool isLooping;
   final bool isLiveMicMode;
-  final NoteDuration selectedDuration; // Currently selected note duration for manual entry
-  final Articulation selectedArticulation; // Currently selected articulation for manual entry
-  final List<double> tapTempoHistory; // BPM tap tempo samples
+  final NoteDuration selectedDuration;
+  final Articulation selectedArticulation;
+  final List<double> tapTempoHistory;
+  final DetectedKey? detectedKey;
 
   const TabPlayerState({
     required this.isPlaying,
@@ -182,6 +316,7 @@ class TabPlayerState {
     this.selectedDuration = NoteDuration.quarter,
     this.selectedArticulation = Articulation.none,
     this.tapTempoHistory = const [],
+    this.detectedKey,
   });
 
   TabPlayerState copyWith({
@@ -198,6 +333,7 @@ class TabPlayerState {
     NoteDuration? selectedDuration,
     Articulation? selectedArticulation,
     List<double>? tapTempoHistory,
+    DetectedKey? detectedKey,
   }) {
     return TabPlayerState(
       isPlaying: isPlaying ?? this.isPlaying,
@@ -468,6 +604,7 @@ class TabPlayerNotifier extends StateNotifier<TabPlayerState> {
     }
 
     if (batchNotes.isNotEmpty) {
+      final detectedKey = _detectMusicalKey(batchNotes);
       final measureCount = (totalBeats / 4.0).ceil().clamp(1, 100).toInt();
       final updatedMeasures = List<TabMeasure>.generate(measureCount, (i) {
         final startBeat = i * 4.0;
@@ -477,9 +614,89 @@ class TabPlayerNotifier extends StateNotifier<TabPlayerState> {
           notes: batchNotes.where((n) => n.position >= startBeat && n.position < endBeat).toList(),
         );
       });
-      state = state.copyWith(measures: updatedMeasures, totalMeasures: measureCount);
+      state = state.copyWith(
+        measures: updatedMeasures,
+        totalMeasures: measureCount,
+        detectedKey: detectedKey,
+      );
       saveSessionToDevice();
     }
+  }
+
+  DetectedKey? _detectMusicalKey(List<TabNote> notes) {
+    if (notes.isEmpty) return null;
+
+    final pitchClassCounts = List<int>.filled(12, 0);
+    for (final note in notes) {
+      if (note.isGhost) continue;
+      final frequency = _getFrequencyFromTabNote(note);
+      if (frequency == null) continue;
+      final pitchClass = _frequencyToPitchClass(frequency);
+      pitchClassCounts[pitchClass]++;
+    }
+
+    final totalNotes = pitchClassCounts.fold<int>(0, (sum, c) => sum + c);
+    if (totalNotes < 3) return null;
+
+    final majorProfile = [0.77, 0.08, 0.14, 0.5, 0.04, 0.09, 0.12, 0.09, 0.02, 0.31, 0.05, 0.46];
+    final minorProfile = [0.75, 0.06, 0.11, 0.39, 0.02, 0.16, 0.15, 0.19, 0.08, 0.12, 0.02, 0.13];
+
+    double bestScore = -1.0;
+    MusicalKey? bestTonic;
+    KeyMode? bestMode;
+
+    for (int i = 0; i < 12; i++) {
+      final majorScore = _calculateKeyFit(pitchClassCounts, majorProfile, i);
+      final minorScore = _calculateKeyFit(pitchClassCounts, minorProfile, i);
+
+      if (majorScore > bestScore) {
+        bestScore = majorScore;
+        bestTonic = MusicalKey.fromSemitones(i);
+        bestMode = KeyMode.major;
+      }
+      if (minorScore > bestScore) {
+        bestScore = minorScore;
+        bestTonic = MusicalKey.fromSemitones(i);
+        bestMode = KeyMode.minor;
+      }
+    }
+
+    if (bestTonic == null || bestScore < 0.3) return null;
+
+    return DetectedKey(
+      tonic: bestTonic!,
+      mode: bestMode!,
+      confidence: bestScore.clamp(0.0, 1.0),
+      pitchClassHistogram: pitchClassCounts,
+    );
+  }
+
+  double _calculateKeyFit(List<int> counts, List<double> profile, int transpose) {
+    double sum = 0.0;
+    final totalCounts = counts.fold<int>(0, (sum, c) => sum + c);
+    if (totalCounts == 0) return 0.0;
+
+    for (int i = 0; i < 12; i++) {
+      final pitchClass = (i + transpose) % 12;
+      final observed = counts[i] / totalCounts;
+      final expected = profile[pitchClass];
+      sum += observed * expected;
+    }
+    return sum;
+  }
+
+  double? _getFrequencyFromTabNote(TabNote note) {
+    final openStringFreqs = {6: 82.41, 5: 110.0, 4: 146.83, 3: 196.0, 2: 246.94, 1: 329.63};
+    final openFreq = openStringFreqs[note.stringIndex];
+    if (openFreq == null) return null;
+    return openFreq * math.pow(2, note.fret / 12);
+  }
+
+  int _frequencyToPitchClass(double frequency) {
+    const a4 = 440.0;
+    final semitonesFromA4 = 12 * math.log(frequency / a4) / math.ln2;
+    final midiNote = (69 + semitonesFromA4).round();
+    return (midiNote % 12 + 12) % 12;
   }
 
   /// 3. PERSISTENCE & PLAYBACK SYNCHRONIZATION FLOW

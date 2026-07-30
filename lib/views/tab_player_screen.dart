@@ -121,6 +121,8 @@ class _TabPlayerScreenState extends ConsumerState<TabPlayerScreen>
         ref.watch(tabPlayerProvider.select((s) => s.selectedArticulation));
     final tapTempoHistory =
         ref.watch(tabPlayerProvider.select((s) => s.tapTempoHistory));
+    final detectedKey =
+        ref.watch(tabPlayerProvider.select((s) => s.detectedKey));
 
     _updatePlayheadDuration(currentBpm, totalMeasures);
 
@@ -168,6 +170,7 @@ class _TabPlayerScreenState extends ConsumerState<TabPlayerScreen>
               selectedDuration: selectedDuration,
               selectedArticulation: selectedArticulation,
               tapTempoHistory: tapTempoHistory,
+              detectedKey: detectedKey,
             ),
             if (isRecording)
               _buildRecordingBanner(recordingDurationSeconds, waveformLevels),
@@ -298,6 +301,7 @@ class _TabPlayerScreenState extends ConsumerState<TabPlayerScreen>
     required NoteDuration selectedDuration,
     required Articulation selectedArticulation,
     required List<double> tapTempoHistory,
+    DetectedKey? detectedKey,
   }) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -311,6 +315,8 @@ class _TabPlayerScreenState extends ConsumerState<TabPlayerScreen>
           const Spacer(),
           _bpmControl(currentBpm),
           const SizedBox(width: 10),
+          if (detectedKey != null) _keyChip(detectedKey),
+          if (detectedKey != null) const SizedBox(width: 10),
           _articulationChip(selectedArticulation),
           const SizedBox(width: 10),
           _durationChip(selectedDuration),
@@ -431,6 +437,54 @@ class _TabPlayerScreenState extends ConsumerState<TabPlayerScreen>
           border: Border.all(color: _borderSubtle),
         ),
         child: Icon(icon, size: 14, color: _textMuted),
+      ),
+    );
+  }
+
+  Widget _keyChip(DetectedKey key) {
+    final confidenceColor = key.confidence > 0.7
+        ? _accentGreen
+        : key.confidence > 0.5
+            ? const Color(0xFFF59E0B)
+            : _textMuted;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+            color: confidenceColor.withValues(alpha: 0.5), width: 1.2),
+        color: confidenceColor.withValues(alpha: 0.1),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.music_note,
+            size: 13,
+            color: confidenceColor,
+          ),
+          const SizedBox(width: 4),
+          Text(
+            key.displayName,
+            style: GoogleFonts.outfit(
+              fontSize: 13,
+              fontWeight: FontWeight.bold,
+              color: confidenceColor,
+            ),
+          ),
+          if (key.confidence > 0.3) ...[
+            const SizedBox(width: 4),
+            Text(
+              '(${(key.confidence * 100).round()})',
+              style: GoogleFonts.outfit(
+                fontSize: 10,
+                fontWeight: FontWeight.w500,
+                color: confidenceColor.withValues(alpha: 0.8),
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }
@@ -695,6 +749,7 @@ class _TabPlayerScreenState extends ConsumerState<TabPlayerScreen>
                             tabPlayerProvider.select((s) => s.playheadPosition)),
                         showSelectionHint: false,
                         minMeasureWidth: minMeasureWidth,
+                        detectedKey: detectedKey,
                       ),
                     ),
                   ),
@@ -854,12 +909,14 @@ class TabNotationPainter extends CustomPainter {
   final double playheadPosition;
   final bool showSelectionHint;
   final double minMeasureWidth;
+  final DetectedKey? detectedKey;
 
   TabNotationPainter({
     required this.measures,
     required this.playheadPosition,
     this.showSelectionHint = false,
     this.minMeasureWidth = 120.0,
+    this.detectedKey,
   });
 
   @override
@@ -930,6 +987,11 @@ class TabNotationPainter extends CustomPainter {
         ..color = const Color(0xFF1E293B)
         ..strokeWidth = 2.5,
     );
+
+    // Key signature accidentals
+    if (detectedKey != null && detectedKey!.accidentals.isNotEmpty) {
+      _drawKeySignature(canvas, detectedKey!, startX + 20, notationTopY, notationSpacing);
+    }
 
     // Measure barlines
     final barlinePaint = Paint()
@@ -1077,6 +1139,45 @@ class TabNotationPainter extends CustomPainter {
       Offset(noteX - xSize, tabY + xSize),
       xPaint,
     );
+  }
+
+  void _drawKeySignature(Canvas canvas, DetectedKey key, double startX, double notationTopY, double notationSpacing) {
+    final accidentals = key.accidentals;
+    if (accidentals.isEmpty) return;
+
+    final accidentalPaint = Paint()
+      ..color = const Color(0xFF1E293B)
+      ..strokeWidth = 1.2
+      ..style = PaintingStyle.stroke;
+
+    final isSharps = accidentals.first > 6;
+    final yPos = [notationTopY + 27, notationTopY + 18, notationTopY + 27, notationTopY + 18, notationTopY + 9, notationTopY + 18, notationTopY + 9];
+
+    double x = startX;
+    for (int i = 0; i < accidentals.length; i++) {
+      final pitchClass = accidentals[i];
+      final y = yPos[i < yPos.length ? i : 5];
+
+      if (isSharps) {
+        // Draw sharp symbol (#)
+        final sharpHeight = 8.0;
+        final sharpWidth = 5.0;
+        canvas.drawLine(Offset(x, y - sharpHeight), Offset(x, y + sharpHeight), accidentalPaint);
+        canvas.drawLine(Offset(x + sharpWidth, y - sharpHeight), Offset(x + sharpWidth, y + sharpHeight), accidentalPaint);
+        canvas.drawLine(Offset(x - 2, y - 2), Offset(x + sharpWidth + 2, y), accidentalPaint..strokeWidth = 0.8);
+        canvas.drawLine(Offset(x - 2, y + 2), Offset(x + sharpWidth + 2, y + 4), accidentalPaint..strokeWidth = 0.8);
+      } else {
+        // Draw flat symbol (b)
+        final path = Path()
+          ..moveTo(x, y - 4)
+          ..lineTo(x, y + 3)
+          ..quadraticBezierTo(x + 4, y + 3, x + 4, y)
+          ..quadraticBezierTo(x + 4, y - 3, x, y - 3)
+          ..close();
+        canvas.drawPath(path, accidentalPaint..style = PaintingStyle.stroke);
+      }
+      x += isSharps ? 10.0 : 8.0;
+    }
   }
 
   void _drawNotationHead(Canvas canvas, TabNote note, double noteX,

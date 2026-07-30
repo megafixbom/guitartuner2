@@ -1,11 +1,13 @@
 import 'dart:math' as math;
 import 'dart:async';
+import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:audioplayers/audioplayers.dart';
 
 import 'dart:convert';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
+import '../services/tempo_detector.dart';
 
 enum NoteDuration {
   whole,
@@ -301,6 +303,7 @@ class TabPlayerState {
   final Articulation selectedArticulation;
   final List<double> tapTempoHistory;
   final DetectedKey? detectedKey;
+  final DetectedTempo? detectedTempo;
 
   const TabPlayerState({
     required this.isPlaying,
@@ -317,6 +320,7 @@ class TabPlayerState {
     this.selectedArticulation = Articulation.none,
     this.tapTempoHistory = const [],
     this.detectedKey,
+    this.detectedTempo,
   });
 
   TabPlayerState copyWith({
@@ -334,6 +338,7 @@ class TabPlayerState {
     Articulation? selectedArticulation,
     List<double>? tapTempoHistory,
     DetectedKey? detectedKey,
+    DetectedTempo? detectedTempo,
   }) {
     return TabPlayerState(
       isPlaying: isPlaying ?? this.isPlaying,
@@ -368,7 +373,8 @@ class TabPlayerNotifier extends StateNotifier<TabPlayerState> {
   final AudioPlayer _synthAudioPlayer = AudioPlayer();
   final Set<double> _triggeredBeatPositions = {};
   final List<double> _recordedFrequencyBuffer = [];
-  final List<double> _ghostNoteTimestamps = []; // seconds from recording start
+  final List<double> _ghostNoteTimestamps = [];
+  final List<double> _recordedAudioSamples = []; // Raw audio for tempo detection
   double _lastQuantizedPos = -1.0;
   Timer? _recordingTimer;
   DateTime? _recordingStartTime;
@@ -380,6 +386,7 @@ class TabPlayerNotifier extends StateNotifier<TabPlayerState> {
       _recordingTimer?.cancel();
       _recordingTimer = null;
       _recordingStartTime = null;
+      _recordedAudioSamples.clear();
     }
     state = state.copyWith(
       isLiveMicMode: newLiveMic,
@@ -396,6 +403,16 @@ class TabPlayerNotifier extends StateNotifier<TabPlayerState> {
       _recordedFrequencyBuffer.add(frequency);
     } else if (state.isLiveMicMode) {
       _processLivePitchSample(frequency);
+    }
+  }
+
+  void recordRawAudioSample(double rmsLevel) {
+    if (state.isRecording) {
+      _recordedAudioSamples.add(rmsLevel.clamp(0.0, 1.0));
+      // Keep last 5 minutes of audio samples at 100Hz (30000 samples)
+      if (_recordedAudioSamples.length > 30000) {
+        _recordedAudioSamples.removeAt(0);
+      }
     }
   }
 
@@ -502,6 +519,7 @@ class TabPlayerNotifier extends StateNotifier<TabPlayerState> {
     if (newRecordingState) {
       _recordedFrequencyBuffer.clear();
       _ghostNoteTimestamps.clear();
+      _recordedAudioSamples.clear();
       _lastQuantizedPos = -1.0;
       _synthAudioPlayer.stop();
       _recordingStartTime = DateTime.now();
@@ -522,11 +540,27 @@ class TabPlayerNotifier extends StateNotifier<TabPlayerState> {
     } else {
       _recordingTimer?.cancel();
       _recordingTimer = null;
+      _detectAndApplyTempo();
       _processBatchRecordedFrequencies();
       _synthAudioPlayer.stop();
       state = state.copyWith(
         isRecording: false,
         isPlaying: false,
+      );
+    }
+  }
+
+  void _detectAndApplyTempo() {
+    if (_recordedAudioSamples.length < 1000) return; // Need at least 10 seconds at 100Hz
+
+    final tempoDetector = TempoDetector(sampleRate: 16000);
+    final audioFloat32 = Float32List.fromList(_recordedAudioSamples);
+    final detectedTempo = tempoDetector.detect(audioFloat32);
+
+    if (detectedTempo != null && detectedTempo.confidence > 0.4) {
+      state = state.copyWith(
+        currentBpm: detectedTempo.bpm,
+        detectedTempo: detectedTempo,
       );
     }
   }
@@ -764,6 +798,10 @@ class TabPlayerNotifier extends StateNotifier<TabPlayerState> {
 
   void setBpm(double bpm) {
     state = state.copyWith(currentBpm: bpm);
+  }
+
+  void clearDetectedTempo() {
+    state = state.copyWith(detectedTempo: null);
   }
 
   void seekTo(double position) {

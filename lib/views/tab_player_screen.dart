@@ -367,6 +367,9 @@ class _TabPlayerScreenState extends ConsumerState<TabPlayerScreen>
   }
 
   Widget _bpmControl(double currentBpm) {
+    final detectedTempo = ref.watch(tabPlayerProvider.select((s) => s.detectedTempo));
+    final hasAutoTempo = detectedTempo != null;
+
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -381,20 +384,45 @@ class _TabPlayerScreenState extends ConsumerState<TabPlayerScreen>
         ),
         // Tap tempo area
         GestureDetector(
-          onTap: () => ref.read(tabPlayerProvider.notifier).registerTapTempo(),
+          onTap: () {
+            if (hasAutoTempo) {
+              // Clear auto-detected tempo and use tap tempo
+              ref.read(tabPlayerProvider.notifier).clearDetectedTempo();
+            } else {
+              ref.read(tabPlayerProvider.notifier).registerTapTempo();
+            }
+          },
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: hasAutoTempo
+                ? BoxDecoration(
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: _accentGreen.withValues(alpha: 0.5), width: 1.2),
+                    color: _accentGreen.withValues(alpha: 0.1),
+                  )
+                : null,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  '${currentBpm.round()}',
-                  style: GoogleFonts.outfit(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w900,
-                    color: _accentCyan,
-                    height: 1.0,
-                  ),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (hasAutoTempo)
+                      Icon(
+                        Icons.auto_awesome,
+                        size: 10,
+                        color: _accentGreen,
+                      ),
+                    Text(
+                      '${currentBpm.round()}',
+                      style: GoogleFonts.outfit(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w900,
+                        color: hasAutoTempo ? _accentGreen : _accentCyan,
+                        height: 1.0,
+                      ),
+                    ),
+                  ],
                 ),
                 Text(
                   'BPM',

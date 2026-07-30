@@ -33,11 +33,24 @@
 - [x] UI integration with auto-tempo indicator
 - [x] Confidence threshold filtering (>0.4)
 
+### ✅ Chord Detection (DONE v1.6.0)
+- [x] Multi-pitch spectral peak detection
+- [x] Pitch class extraction (chroma)
+- [x] Chord template matching (12 types)
+- [x] Jaccard similarity scoring
+- [x] Temporal smoothing for progression
+- [x] Voicing fret estimation
+- [x] Chord name rendering above staff
+- [x] ChordDetector service
+- [ ] Power chord simplification (5th chords)
+- [ ] Chord diagram display (fretboard grid)
+- [ ] Inversion detection (bass note anomalies)
+
 ### ✅ Key Signatures & Accidentals (DONE v1.4.0)
 - [x] Key signature display at left of each staff (sharps/flats)
 - [x] MusicalKey enum and DetectedKey model
 - [x] Automatic key detection from recorded notes using pitch class histograms
-- [x] Key scoring algorithm with major/minor profile matching
+- [x] Krumhansl-Schmiedler profile matching
 - [x] DetectedKey display in toolbar with confidence percentage
 - [ ] `Accidental` enum (sharp, flat, natural, double sharp, double flat)
 - [ ] Accidentals rendering before individual note heads in notation

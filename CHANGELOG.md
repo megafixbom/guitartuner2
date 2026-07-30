@@ -4,6 +4,35 @@ All notable changes to the GuitarTuner app are documented in this file.
 
 ---
 
+## [1.6.0] — 2026-07-30
+
+### Multi-Pitch Chord Detection
+- **ChordDetector Service**: New `lib/services/chord_detector.dart` implements polyphonic chord recognition from audio input.
+- **Spectral Peak Detection**: Finds 2-6 simultaneous frequency peaks using magnitude spectrum analysis.
+- **Pitch Class Extraction**: Converts detected frequencies to chroma (12 pitch classes).
+- **Chord Template Matching**: Compares pitch classes against 12 chord templates:
+  - Triads: Major, Minor, Diminished, Augmented, Sus2, Sus4
+  - Sevenths: Dom7, Maj7, Min7, Dim7
+  - Extended: Add9, mAdd9
+- **Jaccard Similarity Scoring**: Computes intersection/union between observed and template pitch classes.
+- **Temporal Smoothing**: Removes outlier chords by comparing with neighbors (hysteresis filtering).
+- **Voicing Estimation**: Calculates fret position from lowest detected frequency (bass note).
+- **Chord Progression Display**: Renders chord names in blue pill boxes above notation staff.
+- **Confidence Threshold**: >0.5 required for chord acceptance.
+- **Root Position Ambiguity**: Tests all 12 transpositions to find best match.
+- **State Integration**: `TabPlayerState.detectedChords` stores list of DetectedChord with timestamps.
+
+### Technical Details
+- **FFT Frame Size**: 4096 samples (136ms at 32kHz equivalent)
+- **Hop Size**: 2048 samples (50% overlap)
+- **Peak Picking**: 20Hz minimum separation between candidates
+- **Frequency Range**: 80-400Hz (matches guitar standard tuning range)
+- **Max Polyphony**: 6 notes (guitar strings)
+- **Smoothing Window**: Compares with previous chord in progression
+- **Display**: Blue pills (#3B82F6) positioned above each measure's detected chord
+
+---
+
 ## [1.5.0] — 2026-07-30
 
 ### Automatic BPM Detection

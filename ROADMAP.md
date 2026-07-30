@@ -101,9 +101,13 @@
 - [ ] Auto-rest insertion for empty beats in measures
 
 ### Key Signatures & Accidentals
-- [ ] Key signature display at left of each staff (sharps/flats)
+- [x] Key signature display at left of each staff (sharps/flats)
+- [x] MusicalKey enum and DetectedKey model
+- [x] Automatic key detection from recorded notes using pitch class histograms
+- [x] Key scoring algorithm with major/minor profile matching
+- [x] DetectedKey display in toolbar with confidence percentage
 - [ ] `Accidental` enum (sharp, flat, natural, double sharp, double flat)
-- [ ] Rendering before note head in notation
+- [ ] Accidentals rendering before individual note heads in notation
 - [ ] Key signature auto-detection from note frequencies
 
 ### Barre Chords

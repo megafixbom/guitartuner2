@@ -4,6 +4,34 @@ All notable changes to the GuitarTuner app are documented in this file.
 
 ---
 
+## [1.4.0] — 2026-07-30
+
+### Automatic Musical Key Detection
+- **Pitch Class Histogram**: Builds a 12-bin pitch class distribution from all recorded notes, counting occurrences of each chromatic pitch (C, C#, D, D#... B).
+- **Key Detection Algorithm**: Uses Krumhansl-Schmiedler major and minor key profiles to score each possible key. Compares observed pitch class distribution against the expected distribution for all 24 keys (12 major + 12 minor).
+- **`MusicalKey` Enum**: Added enum with 12 chromatic keys (C, Cs, D, Ds, E, F, Fs, G, Gs, A, As, B) and `displayName` getter.
+- **`KeyMode` Enum**: Added major/minor mode enum.
+- **`DetectedKey` Class**: Contains `tonic` (MusicalKey), `mode` (KeyMode), `confidence` (0.0-1.0), and `pitchClassHistogram`. Includes `displayName` getter (e.g., "Em", "G Major") and `accidentals` list.
+- **Key Signature Rendering**: `TabNotationPainter._drawKeySignature()` draws sharps (#) or flats (b) at the beginning of the standard notation staff, following standard music engraving conventions.
+- **Toolbar Key Chip**: displays detected key with confidence percentage (e.g., "Em (75)"), color-coded by confidence (green >70%, amber >50%, otherwise muted).
+
+### State Layer
+- `TabPlayerState.detectedKey` field stores the automatically detected key after recording.
+- `_detectMusicalKey()` method builds pitch class histogram from recorded notes and scores all 24 keys.
+- `_calculateKeyFit()` computes dot product between observed and expected pitch class distributions.
+- `_frequencyToPitchClass()` converts frequency to MIDI note then to pitch class (0-11).
+
+### UI Layer
+- `_keyChip()` widget displays detected key in toolbar with key icon, name, and confidence percentage.
+- `TabNotationPainter.detectedKey` parameter enables key signature rendering on score canvas.
+
+### Technical Details
+- **Profile Source**: Major/minor key profiles based on Krumhansl-Schmiedler (1982) probe-tone ratings.
+- **Minimum Confidence**: Keys with confidence < 0.3 are not displayed (indicating ambiguous or non-diatonic material).
+- **Accidental Calculation**: `DetectedKey.accidentals` getter maps relative tonic to circle of fifths position and returns list of pitch classes to alter (sharps or flats).
+
+---
+
 ## [1.3.0] - 2026-07-29
 
 ### Articulation Symbols & Connectors

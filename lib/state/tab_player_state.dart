@@ -8,6 +8,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import '../services/tempo_detector.dart';
+import '../services/chord_detector.dart';
 
 enum NoteDuration {
   whole,
@@ -304,6 +305,7 @@ class TabPlayerState {
   final List<double> tapTempoHistory;
   final DetectedKey? detectedKey;
   final DetectedTempo? detectedTempo;
+  final List<DetectedChord> detectedChords;
 
   const TabPlayerState({
     required this.isPlaying,
@@ -321,6 +323,7 @@ class TabPlayerState {
     this.tapTempoHistory = const [],
     this.detectedKey,
     this.detectedTempo,
+    this.detectedChords = const [],
   });
 
   TabPlayerState copyWith({
@@ -339,6 +342,7 @@ class TabPlayerState {
     List<double>? tapTempoHistory,
     DetectedKey? detectedKey,
     DetectedTempo? detectedTempo,
+    List<DetectedChord>? detectedChords,
   }) {
     return TabPlayerState(
       isPlaying: isPlaying ?? this.isPlaying,
@@ -541,6 +545,7 @@ class TabPlayerNotifier extends StateNotifier<TabPlayerState> {
       _recordingTimer?.cancel();
       _recordingTimer = null;
       _detectAndApplyTempo();
+      _detectAndApplyChords();
       _processBatchRecordedFrequencies();
       _synthAudioPlayer.stop();
       state = state.copyWith(
@@ -551,7 +556,7 @@ class TabPlayerNotifier extends StateNotifier<TabPlayerState> {
   }
 
   void _detectAndApplyTempo() {
-    if (_recordedAudioSamples.length < 1000) return; // Need at least 10 seconds at 100Hz
+    if (_recordedAudioSamples.length < 1000) return;
 
     final tempoDetector = TempoDetector(sampleRate: 16000);
     final audioFloat32 = Float32List.fromList(_recordedAudioSamples);
@@ -562,6 +567,18 @@ class TabPlayerNotifier extends StateNotifier<TabPlayerState> {
         currentBpm: detectedTempo.bpm,
         detectedTempo: detectedTempo,
       );
+    }
+  }
+
+  void _detectAndApplyChords() {
+    if (_recordedAudioSamples.length < 1000) return;
+
+    final chordDetector = ChordDetector(sampleRate: 16000);
+    final audioFloat32 = Float32List.fromList(_recordedAudioSamples);
+    final detectedChords = chordDetector.detect(audioFloat32);
+
+    if (detectedChords.isNotEmpty) {
+      state = state.copyWith(detectedChords: detectedChords);
     }
   }
 

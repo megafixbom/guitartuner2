@@ -123,6 +123,10 @@ class _TabPlayerScreenState extends ConsumerState<TabPlayerScreen>
         ref.watch(tabPlayerProvider.select((s) => s.tapTempoHistory));
     final detectedKey =
         ref.watch(tabPlayerProvider.select((s) => s.detectedKey));
+    final detectedTempo =
+        ref.watch(tabPlayerProvider.select((s) => s.detectedTempo));
+    final detectedChords =
+        ref.watch(tabPlayerProvider.select((s) => s.detectedChords));
 
     _updatePlayheadDuration(currentBpm, totalMeasures);
 
@@ -1021,6 +1025,8 @@ class TabNotationPainter extends CustomPainter {
       _drawKeySignature(canvas, detectedKey!, startX + 20, notationTopY, notationSpacing);
     }
 
+    _drawChordNames(canvas, startX, measureWidth, notationTopY);
+
     // Measure barlines
     final barlinePaint = Paint()
       ..color = const Color(0xFF1E293B)
@@ -1088,6 +1094,9 @@ class TabNotationPainter extends CustomPainter {
   void _drawNotes(Canvas canvas, double startX, double measureWidth,
       double notationTopY, double notationSpacing,
       double tabTopY, double tabSpacing) {
+    // Draw chord names above staff if detected
+    _drawChordNames(canvas, startX, measureWidth, notationTopY);
+
     // Collect all notes sorted by position, grouped by string for articulation rendering
     final List<TabNote> allNotes = [];
     for (var measure in measures) {
@@ -1171,6 +1180,80 @@ class TabNotationPainter extends CustomPainter {
 
   void _drawKeySignature(Canvas canvas, DetectedKey key, double startX, double notationTopY, double notationSpacing) {
     final accidentals = key.accidentals;
+    if (accidentals.isEmpty) return;
+
+    final accidentalPaint = Paint()
+      ..color = const Color(0xFF1E293B)
+      ..strokeWidth = 1.2
+      ..style = PaintingStyle.stroke;
+
+    final isSharps = accidentals.first > 6;
+    final yPos = [notationTopY + 27, notationTopY + 18, notationTopY + 27, notationTopY + 18, notationTopY + 9, notationTopY + 18, notationTopY + 9];
+
+    double x = startX;
+    for (int i = 0; i < accidentals.length; i++) {
+      final pitchClass = accidentals[i];
+      final y = yPos[i < yPos.length ? i : 5];
+
+      if (isSharps) {
+        // Draw sharp symbol (#)
+        final sharpHeight = 8.0;
+        final sharpWidth = 5.0;
+        canvas.drawLine(Offset(x, y - sharpHeight), Offset(x, y + sharpHeight), accidentalPaint);
+        canvas.drawLine(Offset(x + sharpWidth, y - sharpHeight), Offset(x + sharpWidth, y + sharpHeight), accidentalPaint);
+        canvas.drawLine(Offset(x - 2, y - 2), Offset(x + sharpWidth + 2, y), accidentalPaint..strokeWidth = 0.8);
+        canvas.drawLine(Offset(x - 2, y + 2), Offset(x + sharpWidth + 2, y + 4), accidentalPaint..strokeWidth = 0.8);
+      } else {
+        // Draw flat symbol (b)
+        final path = Path()
+          ..moveTo(x, y - 4)
+          ..lineTo(x, y + 3)
+          ..quadraticBezierTo(x + 4, y + 3, x + 4, y)
+          ..quadraticBezierTo(x + 4, y - 3, x, y - 3)
+          ..close();
+        canvas.drawPath(path, accidentalPaint..style = PaintingStyle.stroke);
+      }
+      x += isSharps ? 10.0 : 8.0;
+    }
+  }
+
+  void _drawChordNames(Canvas canvas, double startX, double measureWidth, double notationTopY) {
+    if (detectedChords.isEmpty) return;
+
+    final chordTextStyle = TextStyle(
+      color: const Color(0xFF3B82F6),
+      fontSize: 16,
+      fontWeight: FontWeight.bold,
+    );
+    final chordBgPaint = Paint()..color = const Color(0xFF3B82F6).withValues(alpha: 0.15);
+
+    // Group chords by measure for display
+    for (final chord in detectedChords) {
+      if (chord.timestamp < 0) continue;
+
+      final measureIndex = (chord.timestamp / 60.0 * 120 /*default bpm*/).floor();
+      final chordX = startX + (measureIndex * measureWidth) + (measureWidth / 2);
+      final chordY = notationTopY - 28;
+
+      // Background pill
+      final chordSpan = TextSpan(text: chord.name, style: chordTextStyle);
+      final chordPainter = TextPainter(text: chordSpan, textDirection: TextDirection.ltr);
+      chordPainter.layout();
+
+      final pillWidth = chordPainter.width + 16;
+      final pillHeight = chordPainter.height + 8;
+      final pillRect = RRect.fromRectAndRadius(
+        Rect.fromCenter(center: Offset(chordX, chordY), width: pillWidth, height: pillHeight),
+        const Radius.circular(8),
+      );
+      canvas.drawRRect(pillRect, chordBgPaint);
+
+      // Chord name
+      chordPainter.paint(canvas, Offset(chordX - chordPainter.width / 2, chordY - chordPainter.height / 2));
+    }
+  }
+
+  void _drawNotationHead(Canvas canvas, TabNote note, double noteX,    final accidentals = key.accidentals;
     if (accidentals.isEmpty) return;
 
     final accidentalPaint = Paint()

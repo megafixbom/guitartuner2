@@ -8,15 +8,15 @@
 
 ## ✅ Verified: Completed Features
 
-### Moises AI-Style Feature Set (3 of 7 implemented)
+### Moises AI-Style Feature Set (4 of 7 implemented)
 
 | Feature | Version | Status | Files | Verification |
 |---------|---------|--------|-------|--------------|
 | **Key Finder** | v1.4.0 | ✅ DONE | `pitch_engine.dart`, `tab_player_state.dart`, `tab_player_screen.dart` | Pitch class histogram, major/minor profile matching, key signature display |
 | **BPM Detection** | v1.5.0 | ✅ DONE | `tempo_detector.dart`, `tab_player_state.dart`, `tab_player_screen.dart` | Spectral flux onset detection, IOI histogram, beat grid generation |
 | **Chord Detection** | v1.6.0 | ✅ DONE | `chord_detector.dart`, `tab_player_state.dart`, `tab_player_screen.dart` | Multi-pitch detection, chord template matching, progression display |
+| **Smart Metronome** | v1.7.0 | ✅ DONE | `metronome_service.dart`, `tab_player_state.dart`, `tab_player_screen.dart` | Click track synced to tempo/time sig, subdivisions, accents, sound & volume control |
 | **BPM Control** | — | ✅ Already had | `tab_player_screen.dart` | Manual +/- buttons, tap tempo |
-| **Smart Metronome** | v1.7.0 | ⏳ TODO | — | — |
 | **Lyric Transcription** | v2.0.0 | ⏳ TODO | — | — |
 | **Pitch Shifting** | v1.9.0 | ⏳ TODO | — | — |
 
@@ -67,7 +67,7 @@ void toggleRecording() {
 
 **tempo_detector.dart** (line 10):
 ```dart
-/// TODO (Future - v1.7.0): Add scale/mode detection for lead sections
+/// TODO (Future - v1.8.0): Add scale/mode detection for lead sections
 ```
 
 **chord_detector.dart** (line 15):
@@ -81,7 +81,6 @@ void toggleRecording() {
 ```
 
 All TODOs reference:
-- v1.7.0: Smart Metronome
 - v1.8.0: Scale Detection (lead sections)
 - v1.9.0: Pitch Shifting
 - v2.0.0: Lyric Transcription
@@ -116,7 +115,7 @@ c0899be feat: automatic musical key detection with key signature display
 | **Pitch Control** | ✅ Shift | ❌ | ⏳ v1.9.0 |
 | **BPM Controls** | ✅ Auto+Adjust | ✅ Auto+Adjust | ✅ Implemented |
 | **Lyric Transcrip.** | ✅ | ❌ | ⏳ v2.0.0 |
-| **Smart Metronome** | ✅ | ❌ | ⏳ v1.7.0 |
+| **Smart Metronome** | ✅ | ✅ | ✅ v1.7.0 |
 | **Scale Detection** | ⚠️ Limited | ❌ | ⏳ v1.8.0 |
 | **Tablature** | ❌ | ✅ | ✅ Unique feature |
 | **Fretboard Visualizer** | ❌ | ✅ | ✅ Unique feature |
@@ -180,18 +179,17 @@ DetectedTempo DetectedChord DetectedKey
 
 ### Next Features (Pick One)
 
-**Option 1: Smart Metronome (v1.7.0) — 1-2 days**
-- ✅ Foundation ready (beat grid from tempo_detector)
-- Need: Audio click generation, subdivision logic
-
-**Option 2: Scale Detection (v1.8.0) — 2-3 days**
+**Option 1: Scale Detection (v1.8.0) — 2-3 days**
 - ✅ Foundation ready (pitch class histogram)
 - Need: Scale pattern database, compatibility algorithm
 
-**Option 3: Pitch Shifting (v1.9.0) — 3-4 days**
+**Option 2: Pitch Shifting (v1.9.0) — 3-4 days**
 - Need: Phase vocoder implementation (no existing foundation)
 
-**Recommended:** Start with **v1.7.0 Smart Metronome** (easiest, builds on existing tempo detection)
+**Option 3: Lyric Transcription (v2.0.0) — 3-5 days**
+- Need: Whisper API / Speech-to-Text integration + vocal separation
+
+**Recommended:** Start with **v1.8.0 Scale Detection** (builds on the pitch class histogram used by key detection)
 
 ---
 

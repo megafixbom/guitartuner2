@@ -2,7 +2,10 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:guitartuner/services/audio_service.dart';
+import 'package:guitartuner/services/chord_detector.dart';
 import 'package:guitartuner/services/pitch_engine.dart';
+import 'package:guitartuner/services/metronome_service.dart';
+import 'package:guitartuner/services/tempo_detector.dart';
 import 'package:guitartuner/state/tab_player_state.dart';
 
 void main() {
@@ -321,6 +324,78 @@ void main() {
       final deserializedMeasure = TabMeasure.fromJson(jsonMeasure);
       expect(deserializedMeasure.number, equals(1));
       expect(deserializedMeasure.notes.first.fret, equals(3));
+    });
+
+    test('copyWith preserves detection and metronome fields (regression)', () {
+      final state = TabPlayerState(
+        isPlaying: false,
+        currentBpm: 120.0,
+        playheadPosition: 0.0,
+        totalMeasures: 4,
+        measures: const [],
+        isLooping: true,
+      );
+
+      final key = DetectedKey(
+        tonic: MusicalKey.G,
+        mode: KeyMode.major,
+        confidence: 0.9,
+        pitchClassHistogram: List.filled(12, 0),
+      );
+      final tempo = DetectedTempo(
+        bpm: 128.0,
+        beats: const [0.0, 0.5],
+        timeSignature: const [4, 4],
+        confidence: 0.8,
+      );
+      const chord = DetectedChord(
+        name: 'Am',
+        root: 'A',
+        quality: 'minor',
+        notes: [9, 0, 4],
+        confidence: 0.95,
+      );
+
+      final updated = state.copyWith(
+        detectedKey: key,
+        detectedTempo: tempo,
+        detectedChords: const [chord],
+        isMetronomeEnabled: true,
+        metronomeSubdivision: MetronomeSubdivision.eighth,
+        metronomeSound: MetronomeSound.beep,
+        metronomeVolume: 0.5,
+      );
+
+      expect(updated.detectedKey, same(key));
+      expect(updated.detectedTempo, same(tempo));
+      expect(updated.detectedChords, hasLength(1));
+      expect(updated.detectedChords.first.name, equals('Am'));
+      expect(updated.isMetronomeEnabled, isTrue);
+      expect(updated.metronomeSubdivision, MetronomeSubdivision.eighth);
+      expect(updated.metronomeSound, MetronomeSound.beep);
+      expect(updated.metronomeVolume, equals(0.5));
+
+      // Unrelated fields keep their previous values.
+      expect(updated.currentBpm, equals(120.0));
+      expect(updated.isLooping, isTrue);
+    });
+  });
+
+  group('Metronome Service Unit Tests', () {
+    test('Subdivision beat steps and labels', () {
+      expect(MetronomeSubdivision.quarter.beatStep, equals(1.0));
+      expect(MetronomeSubdivision.eighth.beatStep, equals(0.5));
+      expect(MetronomeSubdivision.sixteenth.beatStep, equals(0.25));
+
+      expect(MetronomeSubdivision.quarter.label, equals('1/4'));
+      expect(MetronomeSubdivision.eighth.label, equals('1/8'));
+      expect(MetronomeSubdivision.sixteenth.label, equals('1/16'));
+    });
+
+    test('Sound labels', () {
+      expect(MetronomeSound.woodblock.label, equals('Wood'));
+      expect(MetronomeSound.beep.label, equals('Beep'));
+      expect(MetronomeSound.stick.label, equals('Stick'));
     });
   });
 }

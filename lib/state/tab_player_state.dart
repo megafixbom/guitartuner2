@@ -9,6 +9,7 @@ import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import '../services/tempo_detector.dart';
 import '../services/chord_detector.dart';
+import '../services/metronome_service.dart';
 
 enum NoteDuration {
   whole,
@@ -306,6 +307,10 @@ class TabPlayerState {
   final DetectedKey? detectedKey;
   final DetectedTempo? detectedTempo;
   final List<DetectedChord> detectedChords;
+  final bool isMetronomeEnabled;
+  final MetronomeSubdivision metronomeSubdivision;
+  final MetronomeSound metronomeSound;
+  final double metronomeVolume;
 
   const TabPlayerState({
     required this.isPlaying,
@@ -324,6 +329,10 @@ class TabPlayerState {
     this.detectedKey,
     this.detectedTempo,
     this.detectedChords = const [],
+    this.isMetronomeEnabled = false,
+    this.metronomeSubdivision = MetronomeSubdivision.quarter,
+    this.metronomeSound = MetronomeSound.woodblock,
+    this.metronomeVolume = 0.8,
   });
 
   TabPlayerState copyWith({
@@ -343,6 +352,10 @@ class TabPlayerState {
     DetectedKey? detectedKey,
     DetectedTempo? detectedTempo,
     List<DetectedChord>? detectedChords,
+    bool? isMetronomeEnabled,
+    MetronomeSubdivision? metronomeSubdivision,
+    MetronomeSound? metronomeSound,
+    double? metronomeVolume,
   }) {
     return TabPlayerState(
       isPlaying: isPlaying ?? this.isPlaying,
@@ -358,6 +371,13 @@ class TabPlayerState {
       selectedDuration: selectedDuration ?? this.selectedDuration,
       selectedArticulation: selectedArticulation ?? this.selectedArticulation,
       tapTempoHistory: tapTempoHistory ?? this.tapTempoHistory,
+      detectedKey: detectedKey ?? this.detectedKey,
+      detectedTempo: detectedTempo ?? this.detectedTempo,
+      detectedChords: detectedChords ?? this.detectedChords,
+      isMetronomeEnabled: isMetronomeEnabled ?? this.isMetronomeEnabled,
+      metronomeSubdivision: metronomeSubdivision ?? this.metronomeSubdivision,
+      metronomeSound: metronomeSound ?? this.metronomeSound,
+      metronomeVolume: metronomeVolume ?? this.metronomeVolume,
     );
   }
 }
@@ -375,7 +395,9 @@ class TabPlayerNotifier extends StateNotifier<TabPlayerState> {
         ));
 
   final AudioPlayer _synthAudioPlayer = AudioPlayer();
+  final MetronomeService _metronomeService = MetronomeService();
   final Set<double> _triggeredBeatPositions = {};
+  final Set<double> _triggeredClickPositions = {};
   final List<double> _recordedFrequencyBuffer = [];
   final List<double> _ghostNoteTimestamps = [];
   /// Unified audio sample buffer used by ALL detection systems:
@@ -396,6 +418,8 @@ class TabPlayerNotifier extends StateNotifier<TabPlayerState> {
     final bool newLiveMic = !state.isLiveMicMode;
     if (newLiveMic) {
       _synthAudioPlayer.stop();
+      _metronomeService.stopAll();
+      _triggeredClickPositions.clear();
       _recordingTimer?.cancel();
       _recordingTimer = null;
       _recordingStartTime = null;
@@ -557,6 +581,8 @@ class TabPlayerNotifier extends StateNotifier<TabPlayerState> {
       _detectAndApplyChords();
       _processBatchRecordedFrequencies();
       _synthAudioPlayer.stop();
+      _metronomeService.stopAll();
+      _triggeredClickPositions.clear();
       state = state.copyWith(
         isRecording: false,
         isPlaying: false,
@@ -724,7 +750,7 @@ class TabPlayerNotifier extends StateNotifier<TabPlayerState> {
     if (bestTonic == null || bestScore < 0.3) return null;
 
     return DetectedKey(
-      tonic: bestTonic!,
+      tonic: bestTonic,
       mode: bestMode!,
       confidence: bestScore.clamp(0.0, 1.0),
       pitchClassHistogram: pitchClassCounts,
@@ -810,7 +836,9 @@ class TabPlayerNotifier extends StateNotifier<TabPlayerState> {
     final bool newIsPlaying = !state.isPlaying;
     if (!newIsPlaying) {
       _triggeredBeatPositions.clear();
+      _triggeredClickPositions.clear();
       _synthAudioPlayer.stop();
+      _metronomeService.stopAll();
     } else if (state.isLiveMicMode) {
       // Audio playback and Live Mic can conflict, ensure live mic is disabled
       state = state.copyWith(isLiveMicMode: false);
@@ -830,9 +858,53 @@ class TabPlayerNotifier extends StateNotifier<TabPlayerState> {
     state = state.copyWith(detectedTempo: null);
   }
 
+  /// Toggle the smart metronome click track.
+  void toggleMetronome() {
+    final bool newEnabled = !state.isMetronomeEnabled;
+    if (!newEnabled) {
+      _metronomeService.stopAll();
+      _triggeredClickPositions.clear();
+    }
+    state = state.copyWith(isMetronomeEnabled: newEnabled);
+  }
+
+  /// Cycle through subdivision levels (1/4, 1/8, 1/16).
+  void cycleMetronomeSubdivision() {
+    final values = MetronomeSubdivision.values;
+    final currentIndex = values.indexOf(state.metronomeSubdivision);
+    final nextIndex = (currentIndex + 1) % values.length;
+    state = state.copyWith(metronomeSubdivision: values[nextIndex]);
+  }
+
+  void setMetronomeSubdivision(MetronomeSubdivision subdivision) {
+    state = state.copyWith(metronomeSubdivision: subdivision);
+  }
+
+  /// Cycle through click timbres (woodblock, beep, stick).
+  void cycleMetronomeSound() {
+    final values = MetronomeSound.values;
+    final currentIndex = values.indexOf(state.metronomeSound);
+    final nextIndex = (currentIndex + 1) % values.length;
+    final nextSound = values[nextIndex];
+    _metronomeService.updateSettings(sound: nextSound);
+    state = state.copyWith(metronomeSound: nextSound);
+  }
+
+  void setMetronomeSound(MetronomeSound sound) {
+    _metronomeService.updateSettings(sound: sound);
+    state = state.copyWith(metronomeSound: sound);
+  }
+
+  void setMetronomeVolume(double volume) {
+    final clamped = volume.clamp(0.0, 1.0);
+    _metronomeService.updateSettings(volume: clamped);
+    state = state.copyWith(metronomeVolume: clamped);
+  }
+
   void seekTo(double position) {
     if (position < state.playheadPosition) {
       _triggeredBeatPositions.clear();
+      _triggeredClickPositions.clear();
     }
 
     final double totalBeats = state.totalMeasures * 4.0;
@@ -857,6 +929,38 @@ class TabPlayerNotifier extends StateNotifier<TabPlayerState> {
           }
         }
       }
+
+      if (state.isMetronomeEnabled) {
+        _triggerMetronomeClicks(position);
+      }
+    }
+  }
+
+  /// Trigger metronome clicks as the playhead crosses subdivision positions.
+  ///
+  /// Click positions are integer multiples of the subdivision beat step
+  /// (quarter = 1.0, eighth = 0.5, sixteenth = 0.25) within the current time
+  /// signature. Beat 1 gets the strong (downbeat) accent, other beats get the
+  /// weak click, and off-beat subdivisions get a lighter subdivision click.
+  void _triggerMetronomeClicks(double position) {
+    final step = state.metronomeSubdivision.beatStep;
+    final beatsPerMeasure = (state.detectedTempo != null &&
+            state.detectedTempo!.timeSignature.isNotEmpty)
+        ? state.detectedTempo!.timeSignature.first
+        : 4;
+
+    final lastStep = (position / step).floor();
+    for (int i = lastStep - 2; i <= lastStep; i++) {
+      final clickPos = i * step;
+      if (clickPos < 0.0 || clickPos > position) continue;
+      if (_triggeredClickPositions.contains(clickPos)) continue;
+      _triggeredClickPositions.add(clickPos);
+
+      final beatInMeasure = clickPos % beatsPerMeasure;
+      _metronomeService.playClick(
+        beatInMeasure: beatInMeasure,
+        beatsPerMeasure: beatsPerMeasure,
+      );
     }
   }
 
@@ -877,15 +981,18 @@ class TabPlayerNotifier extends StateNotifier<TabPlayerState> {
   /// Reset tab to empty state with a single empty measure
   void clearTab() {
     _triggeredBeatPositions.clear();
+    _triggeredClickPositions.clear();
     _recordedFrequencyBuffer.clear();
     _ghostNoteTimestamps.clear();
     _synthAudioPlayer.stop();
+    _metronomeService.stopAll();
     _recordingTimer?.cancel();
     _recordingTimer = null;
     state = state.copyWith(
       isPlaying: false,
       isRecording: false,
       isLiveMicMode: false,
+      isMetronomeEnabled: false,
       playheadPosition: 0.0,
       totalMeasures: 4,
       measures: List.generate(4, (i) => TabMeasure(number: i + 1, notes: const [])),
@@ -981,6 +1088,7 @@ class TabPlayerNotifier extends StateNotifier<TabPlayerState> {
   void dispose() {
     _recordingTimer?.cancel();
     _synthAudioPlayer.dispose();
+    _metronomeService.dispose();
     super.dispose();
   }
 

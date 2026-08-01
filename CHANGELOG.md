@@ -34,14 +34,26 @@ All notable changes to the GuitarTuner app are documented in this file.
 
 ---
 
-## [Future] — TODO
+## [1.7.0] — 2026-08-01
 
-### v1.7.0: Smart Metronome
-- [ ] Click track synced to detected beat grid (from tempo_detector)
-- [ ] Subdivision options (quarter, eighth, sixteenth)
-- [ ] Accent on beat 1 (downbeat emphasis)
-- [ ] Sound selector (woodblock, beep, stick)
-- [ ] Volume control
+### Smart Metronome
+- **MetronomeService**: New `lib/services/metronome_service.dart` implements a click-track engine synced to the current tempo and time signature.
+- **Downbeat Accent**: Beat 1 of each measure plays a strong (downbeat) click; remaining beats play a weak click; off-beat subdivisions play a lighter subdivision click.
+- **Subdivision Selector**: Quarter (1/4), eighth (1/8), and sixteenth (1/16) note subdivisions.
+- **Sound Selector**: Three synthesized timbres — woodblock, beep, and drum stick — with strong/weak/subdivision variants each.
+- **Volume Control**: Dedicated slider with mute-at-zero behavior in the metronome bar.
+- **Time Signature Awareness**: Click accent pattern follows `DetectedTempo.timeSignature` numerator (defaults to 4/4).
+- **Playback Integration**: Clicks fire from the existing playhead crossing logic in `seekTo`, so the metronome runs during tab playback and while recording to a click.
+- **New Audio Assets**: 9 synthesized WAV files in `assets/sounds/` (`metronome_{woodblock|beep|stick}_{strong|weak|sub}.wav`).
+- **UI**: Metronome toggle chip (`MET`) in the toolbar plus an expanding control bar with subdivision/sound selectors and volume slider.
+
+### Fixes
+- **copyWith regression**: `TabPlayerState.copyWith` declared `detectedKey`, `detectedTempo`, and `detectedChords` parameters but never forwarded them, silently resetting detection results to `null`. Now forwarded correctly.
+- **Compile errors in `tab_player_screen.dart`**: Removed stray braces and a duplicate `dispose()` method that prevented the app from compiling.
+
+---
+
+## [Future] — TODO
 
 ### v1.8.0: Scale Detection for Lead Sections
 - [ ] Analyze monophonic passages for scale patterns

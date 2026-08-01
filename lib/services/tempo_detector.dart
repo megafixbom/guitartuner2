@@ -11,7 +11,7 @@ import 'dart:typed_data';
 /// 5. Find most common IOI → convert to BPM
 /// 6. Refine with beat grid estimation
 ///
-/// TODO (Future - v1.7.0): Add scale/mode detection for lead sections
+/// TODO (Future - v1.8.0): Add scale/mode detection for lead sections
 /// - Analyze note distribution against scale patterns (major, minor, pentatonic, modes)
 /// - Display detected scale overlay during playback
 /// - Highlight scale notes on fretboard vs non-scale notes
@@ -89,7 +89,7 @@ class TempoDetector {
         // Calculate flux (sum of positive differences)
         double fluxValue = 0.0;
         for (int j = 0; j < spectrum.length; j++) {
-          final diff = spectrum[j] - prevSpectrum![j];
+          final diff = spectrum[j] - prevSpectrum[j];
           if (diff > 0) fluxValue += diff;
         }
         flux.add(fluxValue);

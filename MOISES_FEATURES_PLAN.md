@@ -10,7 +10,7 @@
 | **BPM Detection** | ✅ Auto | ⚠️ Manual only | P1 | Medium |
 | **BPM Control** | ✅ Adjust | ✅ | Done | Done |
 | **Lyric Transcription** | ✅ | ❌ | P3 | High |
-| **Smart Metronome** | ✅ Auto-sync | ❌ | P2 | Medium |
+| **Smart Metronome** | ✅ Auto-sync | ✅ (v1.7.0) | Done | Done |
 
 ---
 
@@ -133,31 +133,29 @@ class DetectedTempo {
 
 ---
 
-### 4. Smart Metronome (P2)
+### 4. Smart Metronome (P2) — ✅ DONE v1.7.0
 
 **Goal:** Generate click track that syncs to detected beat grid
 
-**Implementation Approach:**
-- Use detected tempo from Feature #2
-- Generate click sounds on beats (strong/weak differentiation)
+**Implemented:**
+- `MetronomeService` in `lib/services/metronome_service.dart` plays strong/weak/subdivision clicks synced to current tempo + time signature
 - Subdivision options (quarter, eighth, sixteenth)
-- Accent on beat 1 (downbeat)
-- Adjustable click sound (woodblock, beep, stick)
+- Accent on beat 1 (downbeat), weak on beats 2-4
+- Sound selector (woodblock, beep, stick) with synthesized WAV assets
+- Volume slider with mute-at-zero
+- Clicks fire from the playhead crossing logic during playback/recording
 
-**Audio Assets Needed:**
-- `assets/sounds/metronome_strong.wav` (beat 1)
-- `assets/sounds/metronome_weak.wav` (beats 2-4)
-- `assets/sounds/metronome_subdivision.wav` (eighths)
+**Audio Assets:**
+- `assets/sounds/metronome_{woodblock|beep|stick}_{strong|weak|sub}.wav`
 
-**UI Changes:**
-- Metronome toggle button
-- Volume slider
-- Subdivision selector (1/4, 1/8, 1/16)
-- Sound selector (woodblock, beep, stick)
+**UI:**
+- Metronome toggle chip (`MET`) in toolbar
+- Control bar with subdivision/sound selectors + volume slider
 
-**Files to Modify:**
+**Files:**
 - `lib/services/metronome_service.dart` — NEW
 - `lib/views/tab_player_screen.dart` — Metronome controls
+- `lib/state/tab_player_state.dart` — metronome state + click triggering
 
 ---
 
@@ -199,11 +197,11 @@ class DetectedTempo {
 
 ### Phase 1: Foundation (Week 1-2)
 - [x] Key detection (DONE v1.4.0)
-- [ ] Automatic BPM detection
-- [ ] Smart metronome
+- [x] Automatic BPM detection (DONE v1.5.0)
+- [x] Smart metronome (DONE v1.7.0)
 
 ### Phase 2: Harmonic Analysis (Week 3-4)
-- [ ] Chord detection (basic triads)
+- [x] Chord detection (basic triads) (DONE v1.6.0)
 - [ ] Chord diagram rendering
 - [ ] Chord progression timeline
 
@@ -310,10 +308,10 @@ lib/
 │   ├── audio_service.dart        # Mic, ring buffer (existing)
 │   ├── pitch_detector.dart       # YIN algorithm (existing)
 │   ├── pitch_engine.dart         # Pitch processing (existing)
-│   ├── chord_detector.dart       # NEW: Multi-pitch + chord matching
-│   ├── tempo_detector.dart       # NEW: BPM detection
+│   ├── chord_detector.dart       # DONE: Multi-pitch + chord matching
+│   ├── tempo_detector.dart       # DONE: BPM detection
+│   ├── metronome_service.dart    # DONE: Click track generation
 │   ├── pitch_shifter.dart        # NEW: Phase vocoder
-│   ├── metronome_service.dart    # NEW: Click track generation
 │   └── lyric_transcriber.dart    # NEW: Speech-to-text
 ├── models/
 │   ├── detected_chord.dart       # NEW: Chord data model
@@ -332,10 +330,11 @@ lib/
 
 ## Next Steps
 
-1. **Start with BPM Detection** (easiest, builds on existing onset detection)
-2. **Add Metronome** (depends on BPM detection)
-3. **Implement Chord Detection** (requires multi-pitch YIN)
-4. **Add Pitch Shifting** (standalone, can be tested independently)
-5. **Integrate Lyric API** (requires external API key setup)
+1. ~~Start with BPM Detection~~ ✅ DONE v1.5.0
+2. ~~Add Metronome~~ ✅ DONE v1.7.0
+3. ~~Implement Chord Detection~~ ✅ DONE v1.6.0
+4. **Add Scale Detection** (builds on pitch class histogram from key detection)
+5. **Add Pitch Shifting** (standalone, can be tested independently)
+6. **Integrate Lyric API** (requires external API key setup)
 
-Ready to begin implementation? I'll start with **Automatic BPM Detection** as the foundation for the smart metronome.
+Ready to begin the next implementation? I'll start with **Scale Detection** as the foundation for lead-section analysis.

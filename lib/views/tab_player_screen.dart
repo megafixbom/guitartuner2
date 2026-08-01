@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../state/tab_player_state.dart';
 import '../state/tuner_state.dart';
+import '../services/chord_detector.dart';
+import '../services/metronome_service.dart';
 
 class TabPlayerScreen extends ConsumerStatefulWidget {
   const TabPlayerScreen({Key? key}) : super(key: key);
@@ -68,9 +70,6 @@ class _TabPlayerScreenState extends ConsumerState<TabPlayerScreen>
     _scrollController.dispose();
     super.dispose();
   }
-      }
-    });
-  }
 
   void _updatePlayheadDuration(double bpm, int totalMeasures) {
     if (bpm != _lastBpm || totalMeasures != _lastTotalMeasures) {
@@ -81,12 +80,6 @@ class _TabPlayerScreenState extends ConsumerState<TabPlayerScreen>
       _playheadController.duration =
           Duration(milliseconds: (durationSeconds * 1000).round());
     }
-  }
-
-  @override
-  void dispose() {
-    _playheadController.dispose();
-    super.dispose();
   }
 
   static const Color _bgDark = Color(0xFF0A0E17);
@@ -123,10 +116,14 @@ class _TabPlayerScreenState extends ConsumerState<TabPlayerScreen>
         ref.watch(tabPlayerProvider.select((s) => s.tapTempoHistory));
     final detectedKey =
         ref.watch(tabPlayerProvider.select((s) => s.detectedKey));
-    final detectedTempo =
-        ref.watch(tabPlayerProvider.select((s) => s.detectedTempo));
-    final detectedChords =
-        ref.watch(tabPlayerProvider.select((s) => s.detectedChords));
+    final isMetronomeEnabled =
+        ref.watch(tabPlayerProvider.select((s) => s.isMetronomeEnabled));
+    final metronomeSubdivision =
+        ref.watch(tabPlayerProvider.select((s) => s.metronomeSubdivision));
+    final metronomeSound =
+        ref.watch(tabPlayerProvider.select((s) => s.metronomeSound));
+    final metronomeVolume =
+        ref.watch(tabPlayerProvider.select((s) => s.metronomeVolume));
 
     _updatePlayheadDuration(currentBpm, totalMeasures);
 
@@ -175,7 +172,14 @@ class _TabPlayerScreenState extends ConsumerState<TabPlayerScreen>
               selectedArticulation: selectedArticulation,
               tapTempoHistory: tapTempoHistory,
               detectedKey: detectedKey,
+              isMetronomeEnabled: isMetronomeEnabled,
             ),
+            if (isMetronomeEnabled)
+              _buildMetronomeBar(
+                subdivision: metronomeSubdivision,
+                sound: metronomeSound,
+                volume: metronomeVolume,
+              ),
             if (isRecording)
               _buildRecordingBanner(recordingDurationSeconds, waveformLevels),
             Expanded(
@@ -306,6 +310,7 @@ class _TabPlayerScreenState extends ConsumerState<TabPlayerScreen>
     required Articulation selectedArticulation,
     required List<double> tapTempoHistory,
     DetectedKey? detectedKey,
+    required bool isMetronomeEnabled,
   }) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -313,21 +318,203 @@ class _TabPlayerScreenState extends ConsumerState<TabPlayerScreen>
         color: _surfaceDark,
         border: Border(bottom: BorderSide(color: _borderSubtle)),
       ),
-      child: Row(
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
+            _modePill(isLiveMicMode: isLiveMicMode),
+            const SizedBox(width: 12),
+            _metronomeToggleChip(isMetronomeEnabled),
+            const SizedBox(width: 12),
+            _bpmControl(currentBpm),
+            const SizedBox(width: 10),
+            if (detectedKey != null) _keyChip(detectedKey),
+            if (detectedKey != null) const SizedBox(width: 10),
+            _articulationChip(selectedArticulation),
+            const SizedBox(width: 10),
+            _durationChip(selectedDuration),
+            const SizedBox(width: 10),
+            _transportButtons(isPlaying: isPlaying, isRecording: isRecording),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _metronomeToggleChip(bool isEnabled) {
+    final Color chipColor = isEnabled ? _accentCyan : _textMuted;
+
+    return GestureDetector(
+      onTap: () => ref.read(tabPlayerProvider.notifier).toggleMetronome(),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+              color: isEnabled ? chipColor.withValues(alpha: 0.5) : _borderSubtle),
+          color: isEnabled ? chipColor.withValues(alpha: 0.12) : Colors.transparent,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              isEnabled ? Icons.timer : Icons.timer_outlined,
+              size: 13,
+              color: chipColor,
+            ),
+            const SizedBox(width: 4),
+            Text(
+              'MET',
+              style: GoogleFonts.outfit(
+                fontSize: 10,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 0.5,
+                color: chipColor,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMetronomeBar({
+    required MetronomeSubdivision subdivision,
+    required MetronomeSound sound,
+    required double volume,
+  }) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(12, 6, 12, 0),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: _surfaceDark,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: _accentCyan.withValues(alpha: 0.35)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _modePill(isLiveMicMode: isLiveMicMode),
-          const Spacer(),
-          _bpmControl(currentBpm),
-          const SizedBox(width: 10),
-          if (detectedKey != null) _keyChip(detectedKey),
-          if (detectedKey != null) const SizedBox(width: 10),
-          _articulationChip(selectedArticulation),
-          const SizedBox(width: 10),
-          _durationChip(selectedDuration),
-          const SizedBox(width: 10),
-          _transportButtons(isPlaying: isPlaying, isRecording: isRecording),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Row(
+              children: [
+                const Icon(Icons.timer, size: 15, color: _accentCyan),
+                const SizedBox(width: 8),
+                _segmentedSelector(
+                  label: 'SUB',
+                  options: MetronomeSubdivision.values
+                      .map((s) => s.label)
+                      .toList(),
+                  selectedIndex:
+                      MetronomeSubdivision.values.indexOf(subdivision),
+                  onSelected: (i) => ref
+                      .read(tabPlayerProvider.notifier)
+                      .setMetronomeSubdivision(MetronomeSubdivision.values[i]),
+                ),
+                const SizedBox(width: 14),
+                _segmentedSelector(
+                  label: 'SOUND',
+                  options:
+                      MetronomeSound.values.map((s) => s.label).toList(),
+                  selectedIndex: MetronomeSound.values.indexOf(sound),
+                  onSelected: (i) => ref
+                      .read(tabPlayerProvider.notifier)
+                      .setMetronomeSound(MetronomeSound.values[i]),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 4),
+          Row(
+            children: [
+              Icon(
+                volume <= 0.0 ? Icons.volume_off : Icons.volume_down,
+                size: 14,
+                color: _textMuted,
+              ),
+              Expanded(
+                child: SliderTheme(
+                  data: SliderThemeData(
+                    trackHeight: 3,
+                    thumbShape: const RoundSliderThumbShape(
+                        enabledThumbRadius: 6),
+                    overlayShape:
+                        const RoundSliderOverlayShape(overlayRadius: 12),
+                    activeTrackColor: _accentCyan,
+                    inactiveTrackColor: _borderSubtle,
+                    thumbColor: _accentCyan,
+                  ),
+                  child: Slider(
+                    value: volume,
+                    onChanged: (v) => ref
+                        .read(tabPlayerProvider.notifier)
+                        .setMetronomeVolume(v),
+                  ),
+                ),
+              ),
+              Icon(
+                Icons.volume_up,
+                size: 14,
+                color: _textMuted,
+              ),
+            ],
+          ),
         ],
       ),
+    );
+  }
+
+  Widget _segmentedSelector({
+    required String label,
+    required List<String> options,
+    required int selectedIndex,
+    required ValueChanged<int> onSelected,
+  }) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          label,
+          style: GoogleFonts.outfit(
+            fontSize: 9,
+            fontWeight: FontWeight.bold,
+            letterSpacing: 1.0,
+            color: _textMuted,
+          ),
+        ),
+        const SizedBox(width: 6),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: List.generate(options.length, (i) {
+            final bool selected = i == selectedIndex;
+            return GestureDetector(
+              onTap: () => onSelected(i),
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                margin: const EdgeInsets.only(right: 3),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(6),
+                  color: selected
+                      ? _accentCyan.withValues(alpha: 0.2)
+                      : Colors.transparent,
+                  border: Border.all(
+                      color: selected ? _accentCyan : _borderSubtle),
+                ),
+                child: Text(
+                  options[i],
+                  style: GoogleFonts.outfit(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    color: selected ? _accentCyan : _textMuted,
+                  ),
+                ),
+              ),
+            );
+          }),
+        ),
+      ],
     );
   }
 
@@ -741,6 +928,10 @@ class _TabPlayerScreenState extends ConsumerState<TabPlayerScreen>
       builder: (context, ref, child) {
         final measures =
             ref.watch(tabPlayerProvider.select((s) => s.measures));
+        final detectedKey =
+            ref.watch(tabPlayerProvider.select((s) => s.detectedKey));
+        final detectedChords =
+            ref.watch(tabPlayerProvider.select((s) => s.detectedChords));
         final measureCount = measures.isEmpty ? 1 : measures.length;
         const double minMeasureWidth = 120.0;
         const double startX = 50.0;
@@ -782,6 +973,7 @@ class _TabPlayerScreenState extends ConsumerState<TabPlayerScreen>
                         showSelectionHint: false,
                         minMeasureWidth: minMeasureWidth,
                         detectedKey: detectedKey,
+                        detectedChords: detectedChords,
                       ),
                     ),
                   ),
@@ -942,6 +1134,7 @@ class TabNotationPainter extends CustomPainter {
   final bool showSelectionHint;
   final double minMeasureWidth;
   final DetectedKey? detectedKey;
+  final List<DetectedChord> detectedChords;
 
   TabNotationPainter({
     required this.measures,
@@ -949,6 +1142,7 @@ class TabNotationPainter extends CustomPainter {
     this.showSelectionHint = false,
     this.minMeasureWidth = 120.0,
     this.detectedKey,
+    this.detectedChords = const [],
   });
 
   @override
@@ -1110,13 +1304,6 @@ class TabNotationPainter extends CustomPainter {
       fontWeight: FontWeight.w900,
     );
 
-    final artStyle = TextStyle(
-      color: const Color(0xFF6B7280),
-      fontSize: 10,
-      fontWeight: FontWeight.bold,
-      fontStyle: FontStyle.italic,
-    );
-
     // Phase 1: Draw TAB fret numbers / X / articulation symbols
     for (var note in allNotes) {
       final double noteX =
@@ -1192,7 +1379,6 @@ class TabNotationPainter extends CustomPainter {
 
     double x = startX;
     for (int i = 0; i < accidentals.length; i++) {
-      final pitchClass = accidentals[i];
       final y = yPos[i < yPos.length ? i : 5];
 
       if (isSharps) {
@@ -1250,44 +1436,6 @@ class TabNotationPainter extends CustomPainter {
 
       // Chord name
       chordPainter.paint(canvas, Offset(chordX - chordPainter.width / 2, chordY - chordPainter.height / 2));
-    }
-  }
-
-  void _drawNotationHead(Canvas canvas, TabNote note, double noteX,    final accidentals = key.accidentals;
-    if (accidentals.isEmpty) return;
-
-    final accidentalPaint = Paint()
-      ..color = const Color(0xFF1E293B)
-      ..strokeWidth = 1.2
-      ..style = PaintingStyle.stroke;
-
-    final isSharps = accidentals.first > 6;
-    final yPos = [notationTopY + 27, notationTopY + 18, notationTopY + 27, notationTopY + 18, notationTopY + 9, notationTopY + 18, notationTopY + 9];
-
-    double x = startX;
-    for (int i = 0; i < accidentals.length; i++) {
-      final pitchClass = accidentals[i];
-      final y = yPos[i < yPos.length ? i : 5];
-
-      if (isSharps) {
-        // Draw sharp symbol (#)
-        final sharpHeight = 8.0;
-        final sharpWidth = 5.0;
-        canvas.drawLine(Offset(x, y - sharpHeight), Offset(x, y + sharpHeight), accidentalPaint);
-        canvas.drawLine(Offset(x + sharpWidth, y - sharpHeight), Offset(x + sharpWidth, y + sharpHeight), accidentalPaint);
-        canvas.drawLine(Offset(x - 2, y - 2), Offset(x + sharpWidth + 2, y), accidentalPaint..strokeWidth = 0.8);
-        canvas.drawLine(Offset(x - 2, y + 2), Offset(x + sharpWidth + 2, y + 4), accidentalPaint..strokeWidth = 0.8);
-      } else {
-        // Draw flat symbol (b)
-        final path = Path()
-          ..moveTo(x, y - 4)
-          ..lineTo(x, y + 3)
-          ..quadraticBezierTo(x + 4, y + 3, x + 4, y)
-          ..quadraticBezierTo(x + 4, y - 3, x, y - 3)
-          ..close();
-        canvas.drawPath(path, accidentalPaint..style = PaintingStyle.stroke);
-      }
-      x += isSharps ? 10.0 : 8.0;
     }
   }
 

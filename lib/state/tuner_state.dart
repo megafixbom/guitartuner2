@@ -282,7 +282,7 @@ class TunerStateNotifier extends StateNotifier<TunerAppState> {
   /// Play clean high-register visual chime and short device vibration
   Future<void> _playInTuneFeedback() async {
     try {
-      final canVibrate = await Vibration.hasVibrator() ?? false;
+      final canVibrate = await Vibration.hasVibrator();
       if (canVibrate) {
         Vibration.vibrate(duration: 80, amplitude: 128);
       }

@@ -24,6 +24,20 @@
 - [x] **BPM detection** (v1.5.0) — Spectral flux onset detection + IOI histogram
 - [x] **Chord detection** (v1.6.0) — Multi-pitch spectral peaks + chord template matching
 - [x] **Unified recording** — Single audio buffer feeds key + tempo + chord detection
+- [x] **Smart Metronome** (v1.7.0) — Click track synced to tempo/time signature with subdivisions, accents, sound & volume control
+
+---
+
+## v1.7.0 — Smart Metronome (DONE 2026-08-01)
+
+- [x] Click track synced to tempo + time signature (beat grid accent pattern)
+- [x] Subdivision selector (1/4, 1/8, 1/16)
+- [x] Accent pattern (beat 1 downbeat emphasis)
+- [x] Sound selector (woodblock, beep, stick)
+- [x] Volume slider with mute-at-zero
+- [x] MetronomeService in `lib/services/metronome_service.dart`
+- [x] Metronome toggle chip + control bar UI
+- [x] 9 synthesized click assets in `assets/sounds/`
 
 ---
 
@@ -195,7 +209,6 @@
 
 ## Not Started / Backlog
 
-- [ ] Metronome click track (audio click on beats)
 - [ ] Drum pattern / backing track layer
 - [ ] Multi-track tab (lead + rhythm + bass)
 - [ ] Cloud sync (Firebase or similar)
@@ -213,13 +226,6 @@
 ---
 
 ## TODO — Future Implementations (Not Started)
-
-### v1.7.0 — Smart Metronome
-- [ ] Click track synced to `DetectedTempo.beats` grid
-- [ ] Subdivision selector (quarter, eighth, sixteenth notes)
-- [ ] Accent pattern (beat 1 emphasis for 4/4 time)
-- [ ] Sound selector: woodblock, beep, drum stick
-- [ ] Volume slider with mute toggle
 
 ### v1.8.0 — Scale Detection for Lead Sections
 - [ ] Analyze monophonic passages for scale patterns

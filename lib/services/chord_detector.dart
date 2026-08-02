@@ -12,11 +12,9 @@ import 'dart:typed_data';
 /// 4. Match against chord templates (major, minor, 7th, etc.)
 /// 5. Return best matching chord with root and quality
 ///
-/// TODO (Future - v1.8.0): Add scale detection for lead sections
-/// - Detect scales from single-note passages (major, minor, pentatonic, modes)
-/// - Display scale name overlay (e.g., "A Minor Pentatonic", "G Major (Ionian)")
-/// - Highlight scale vs non-scale notes during playback
-/// - Suggest compatible scales for detected chord progression
+/// TODO (Future - v1.8.0 follow-ups): Suggest compatible scales for the
+/// detected chord progression; arpeggio detection (outline chord tones in
+/// lead playing). Pitch shifting / transposition planned for v1.9.0.
 class ChordDetector {
   final int sampleRate;
   final double minFrequency;

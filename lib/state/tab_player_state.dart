@@ -10,6 +10,7 @@ import 'package:path_provider/path_provider.dart';
 import '../services/tempo_detector.dart';
 import '../services/chord_detector.dart';
 import '../services/metronome_service.dart';
+import '../services/scale_detector.dart';
 
 enum NoteDuration {
   whole,
@@ -307,6 +308,7 @@ class TabPlayerState {
   final DetectedKey? detectedKey;
   final DetectedTempo? detectedTempo;
   final List<DetectedChord> detectedChords;
+  final DetectedScale? detectedScale;
   final bool isMetronomeEnabled;
   final MetronomeSubdivision metronomeSubdivision;
   final MetronomeSound metronomeSound;
@@ -329,6 +331,7 @@ class TabPlayerState {
     this.detectedKey,
     this.detectedTempo,
     this.detectedChords = const [],
+    this.detectedScale,
     this.isMetronomeEnabled = false,
     this.metronomeSubdivision = MetronomeSubdivision.quarter,
     this.metronomeSound = MetronomeSound.woodblock,
@@ -352,6 +355,7 @@ class TabPlayerState {
     DetectedKey? detectedKey,
     DetectedTempo? detectedTempo,
     List<DetectedChord>? detectedChords,
+    DetectedScale? detectedScale,
     bool? isMetronomeEnabled,
     MetronomeSubdivision? metronomeSubdivision,
     MetronomeSound? metronomeSound,
@@ -374,6 +378,7 @@ class TabPlayerState {
       detectedKey: detectedKey ?? this.detectedKey,
       detectedTempo: detectedTempo ?? this.detectedTempo,
       detectedChords: detectedChords ?? this.detectedChords,
+      detectedScale: detectedScale ?? this.detectedScale,
       isMetronomeEnabled: isMetronomeEnabled ?? this.isMetronomeEnabled,
       metronomeSubdivision: metronomeSubdivision ?? this.metronomeSubdivision,
       metronomeSound: metronomeSound ?? this.metronomeSound,
@@ -404,11 +409,7 @@ class TabPlayerNotifier extends StateNotifier<TabPlayerState> {
   /// - Tempo/BPM detection (tempo_detector.dart)
   /// - Chord detection (chord_detector.dart)
   /// - Key detection (pitch class histogram in this file)
-  /// TODO (Future - v1.8.0): Add scale detection for lead sections
-  /// - Detect scales from monophonic passages (major, minor, pentatonic, modes)
-  /// - Display "Scale:" overlay in toolbar next to detected key
-  /// - Highlight scale vs non-scale notes on fretboard during playback
-  /// - Suggest compatible scales for detected chord progression
+  /// - Scale detection (scale_detector.dart)
   final List<double> _recordedAudioSamples = [];
   double _lastQuantizedPos = -1.0;
   Timer? _recordingTimer;
@@ -690,7 +691,9 @@ class TabPlayerNotifier extends StateNotifier<TabPlayerState> {
     }
 
     if (batchNotes.isNotEmpty) {
-      final detectedKey = _detectMusicalKey(batchNotes);
+      final pitchClassCounts = _buildPitchClassHistogram(batchNotes);
+      final detectedKey = _detectMusicalKey(pitchClassCounts);
+      final detectedScale = _detectScale(pitchClassCounts);
       final measureCount = (totalBeats / 4.0).ceil().clamp(1, 100).toInt();
       final updatedMeasures = List<TabMeasure>.generate(measureCount, (i) {
         final startBeat = i * 4.0;
@@ -704,14 +707,13 @@ class TabPlayerNotifier extends StateNotifier<TabPlayerState> {
         measures: updatedMeasures,
         totalMeasures: measureCount,
         detectedKey: detectedKey,
+        detectedScale: detectedScale,
       );
       saveSessionToDevice();
     }
   }
 
-  DetectedKey? _detectMusicalKey(List<TabNote> notes) {
-    if (notes.isEmpty) return null;
-
+  List<int> _buildPitchClassHistogram(List<TabNote> notes) {
     final pitchClassCounts = List<int>.filled(12, 0);
     for (final note in notes) {
       if (note.isGhost) continue;
@@ -720,7 +722,10 @@ class TabPlayerNotifier extends StateNotifier<TabPlayerState> {
       final pitchClass = _frequencyToPitchClass(frequency);
       pitchClassCounts[pitchClass]++;
     }
+    return pitchClassCounts;
+  }
 
+  DetectedKey? _detectMusicalKey(List<int> pitchClassCounts) {
     final totalNotes = pitchClassCounts.fold<int>(0, (sum, c) => sum + c);
     if (totalNotes < 3) return null;
 
@@ -755,6 +760,13 @@ class TabPlayerNotifier extends StateNotifier<TabPlayerState> {
       confidence: bestScore.clamp(0.0, 1.0),
       pitchClassHistogram: pitchClassCounts,
     );
+  }
+
+  /// Detect the best-fitting musical scale from the pitch class histogram.
+  DetectedScale? _detectScale(List<int> pitchClassCounts) {
+    final totalNotes = pitchClassCounts.fold<int>(0, (sum, c) => sum + c);
+    if (totalNotes < 3) return null;
+    return ScaleDetector().detect(pitchClassCounts);
   }
 
   double _calculateKeyFit(List<int> counts, List<double> profile, int transpose) {
@@ -993,6 +1005,10 @@ class TabPlayerNotifier extends StateNotifier<TabPlayerState> {
       isRecording: false,
       isLiveMicMode: false,
       isMetronomeEnabled: false,
+      detectedKey: null,
+      detectedScale: null,
+      detectedTempo: null,
+      detectedChords: const [],
       playheadPosition: 0.0,
       totalMeasures: 4,
       measures: List.generate(4, (i) => TabMeasure(number: i + 1, notes: const [])),

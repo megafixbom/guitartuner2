@@ -53,15 +53,21 @@ All notable changes to the GuitarTuner app are documented in this file.
 
 ---
 
-## [Future] — TODO
+## [1.8.0] — 2026-08-02
 
-### v1.8.0: Scale Detection for Lead Sections
-- [ ] Analyze monophonic passages for scale patterns
-- [ ] Detect: major, minor, pentatonic, blues, modes (Dorian, Phrygian, etc.)
-- [ ] Display "Scale: A Minor Pentatonic" overlay in toolbar
-- [ ] Color-code notes on fretboard (green = scale tone, red = non-scale)
-- [ ] Suggest compatible scales for detected chord progression
-- [ ] Arpeggio detection (outline chord tones in lead playing)
+### Scale Detection for Lead Sections
+- **ScaleDetector Service**: New `lib/services/scale_detector.dart` analyzes a monophonic passage's pitch class histogram to find the best-fitting musical scale.
+- **Scale Type Database**: 12 scale patterns — major, natural/harmonic/melodic minor, major & minor pentatonic, blues, and the church modes (Dorian, Phrygian, Lydian, Mixolydian, Locrian).
+- **Matching Algorithm**: Coverage (fraction of notes inside the scale), tonic emphasis, and scale-size match are combined into a confidence score; detections below 0.6 coverage are rejected.
+- **`DetectedScale` Model**: Tonic pitch class, scale type, confidence, histogram, `displayName` ("A Minor Pentatonic"), and `isInScale(pitchClass)` helper.
+- **State Integration**: `TabPlayerState.detectedScale` field, forwarded through `copyWith`, reset on tab clear, and computed from the same pitch class histogram as key detection in `_processBatchRecordedFrequencies`.
+- **UI**: "Scale: A Minor Pentatonic (87)" chip in the toolbar next to the key chip, colored by confidence.
+- **Fretboard Overlay**: When a scale is detected, the fretboard shows green dots on in-scale frets and dim red dots on out-of-scale frets.
+- **Tests**: 5 new unit tests (C major, A minor pentatonic, D mixolydian, too-few-notes rejection, `isInScale`).
+
+---
+
+## [Future] — TODO
 
 ### v1.9.0: Pitch Shifting / Key Transposition
 - [ ] Phase vocoder implementation

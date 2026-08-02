@@ -12,7 +12,7 @@ Prioritized ideas for GuitarTuner beyond the current roadmap
 
 | # | Feature | Notes |
 |---|---------|-------|
-| 1 | **Scale detection (v1.8.0)** | Analyzes monophonic passages; major/minor/pentatonic/modes; reuses pitch class histogram from key detection |
+| 1 | **Scale detection (v1.8.0)** | ✅ DONE — 12 scale patterns, toolbar chip, fretboard scale-tone overlay; follow-ups: progression-compatible scales, arpeggio detection |
 | 2 | **Chord diagram library** | Fretboard grid showing finger positions for detected chords |
 | 3 | **PDF / MusicXML / MIDI export** | Share tabs with other tools (Guitar Pro import path) |
 | 4 | **Practice feedback** | Score accuracy of recorded playback against the tab (per-note pitch/timing) |
@@ -51,8 +51,8 @@ Prioritized ideas for GuitarTuner beyond the current roadmap
 
 ## Suggested next picks
 
-1. **Scale detection (v1.8.0)** — the roadmap's recommended next feature; natural
-   extension of the existing key detection.
+1. **Pitch shifting (v1.9.0)** — the roadmap's recommended next feature; phase
+   vocoder for independent tempo/pitch control.
 2. **Practice feedback** — high value for users, builds on the recording and
    playback pipeline already in place.
 3. **PDF/MusicXML export** — unlocks sharing and interop with notation tools.

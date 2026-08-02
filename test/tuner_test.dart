@@ -5,6 +5,7 @@ import 'package:guitartuner/services/audio_service.dart';
 import 'package:guitartuner/services/chord_detector.dart';
 import 'package:guitartuner/services/pitch_engine.dart';
 import 'package:guitartuner/services/metronome_service.dart';
+import 'package:guitartuner/services/scale_detector.dart';
 import 'package:guitartuner/services/tempo_detector.dart';
 import 'package:guitartuner/state/tab_player_state.dart';
 
@@ -355,11 +356,18 @@ void main() {
         notes: [9, 0, 4],
         confidence: 0.95,
       );
+      const scale = DetectedScale(
+        tonic: 9,
+        type: ScaleType.minorPentatonic,
+        confidence: 0.9,
+        pitchClassHistogram: [],
+      );
 
       final updated = state.copyWith(
         detectedKey: key,
         detectedTempo: tempo,
         detectedChords: const [chord],
+        detectedScale: scale,
         isMetronomeEnabled: true,
         metronomeSubdivision: MetronomeSubdivision.eighth,
         metronomeSound: MetronomeSound.beep,
@@ -370,6 +378,8 @@ void main() {
       expect(updated.detectedTempo, same(tempo));
       expect(updated.detectedChords, hasLength(1));
       expect(updated.detectedChords.first.name, equals('Am'));
+      expect(updated.detectedScale, same(scale));
+      expect(updated.detectedScale!.displayName, equals('A Minor Pentatonic'));
       expect(updated.isMetronomeEnabled, isTrue);
       expect(updated.metronomeSubdivision, MetronomeSubdivision.eighth);
       expect(updated.metronomeSound, MetronomeSound.beep);
@@ -396,6 +406,78 @@ void main() {
       expect(MetronomeSound.woodblock.label, equals('Wood'));
       expect(MetronomeSound.beep.label, equals('Beep'));
       expect(MetronomeSound.stick.label, equals('Stick'));
+    });
+  });
+
+  group('Scale Detector Unit Tests', () {
+    List<int> histogramFrom(List<int> pitchClasses, {List<int> weights = const []}) {
+      final counts = List<int>.filled(12, 0);
+      for (int i = 0; i < pitchClasses.length; i++) {
+        final pc = pitchClasses[i];
+        final w = i < weights.length ? weights[i] : 1;
+        counts[pc] += w;
+      }
+      return counts;
+    }
+
+    test('Detects C major from major scale notes', () {
+      // C D E F G A B with tonic emphasis on C
+      final histogram = histogramFrom(
+        const [0, 2, 4, 5, 7, 9, 11, 0, 0, 0, 0],
+        weights: const [3, 1, 1, 1, 2, 1, 1, 2, 1, 1, 1, 1],
+      );
+      final result = ScaleDetector().detect(histogram);
+      expect(result, isNotNull);
+      expect(result!.tonic, equals(0));
+      expect(result.type, ScaleType.major);
+    });
+
+    test('Detects A minor pentatonic from pentatonic notes', () {
+      // A C D E G (minor pentatonic), tonic emphasis on A (pitch class 9)
+      final histogram = histogramFrom(
+        const [9, 0, 2, 4, 7],
+        weights: const [4, 1, 1, 1, 2],
+      );
+      final result = ScaleDetector().detect(histogram);
+      expect(result, isNotNull);
+      expect(result!.tonic, equals(9));
+      expect(result.type, ScaleType.minorPentatonic);
+    });
+
+    test('Detects D mixolydian from a mixolydian melody', () {
+      // D E F# G A B C (D mixolydian = G major), tonic emphasis on D (2)
+      final histogram = histogramFrom(
+        const [2, 4, 6, 7, 9, 11, 0],
+        weights: const [4, 1, 1, 2, 1, 1, 1],
+      );
+      final result = ScaleDetector().detect(histogram);
+      expect(result, isNotNull);
+      expect(result!.tonic, equals(2));
+      expect(result.type, ScaleType.mixolydian);
+    });
+
+    test('Returns null for too few notes', () {
+      final histogram = List<int>.filled(12, 0);
+      histogram[0] = 1;
+      histogram[2] = 1;
+      expect(ScaleDetector().detect(histogram), isNull);
+    });
+
+    test('isInScale reports correct pitch classes', () {
+      const scale = DetectedScale(
+        tonic: 9, // A
+        type: ScaleType.minorPentatonic,
+        confidence: 1.0,
+        pitchClassHistogram: [],
+      );
+      expect(scale.displayName, equals('A Minor Pentatonic'));
+      // A C D E G
+      expect(scale.isInScale(9), isTrue);
+      expect(scale.isInScale(0), isTrue);
+      expect(scale.isInScale(2), isTrue);
+      expect(scale.isInScale(4), isTrue);
+      expect(scale.isInScale(7), isTrue);
+      expect(scale.isInScale(3), isFalse); // C#
     });
   });
 }

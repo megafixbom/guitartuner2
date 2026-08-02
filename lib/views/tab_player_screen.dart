@@ -6,6 +6,7 @@ import '../state/tab_player_state.dart';
 import '../state/tuner_state.dart';
 import '../services/chord_detector.dart';
 import '../services/metronome_service.dart';
+import '../services/scale_detector.dart';
 
 class TabPlayerScreen extends ConsumerStatefulWidget {
   const TabPlayerScreen({Key? key}) : super(key: key);
@@ -116,6 +117,8 @@ class _TabPlayerScreenState extends ConsumerState<TabPlayerScreen>
         ref.watch(tabPlayerProvider.select((s) => s.tapTempoHistory));
     final detectedKey =
         ref.watch(tabPlayerProvider.select((s) => s.detectedKey));
+    final detectedScale =
+        ref.watch(tabPlayerProvider.select((s) => s.detectedScale));
     final isMetronomeEnabled =
         ref.watch(tabPlayerProvider.select((s) => s.isMetronomeEnabled));
     final metronomeSubdivision =
@@ -172,6 +175,7 @@ class _TabPlayerScreenState extends ConsumerState<TabPlayerScreen>
               selectedArticulation: selectedArticulation,
               tapTempoHistory: tapTempoHistory,
               detectedKey: detectedKey,
+              detectedScale: detectedScale,
               isMetronomeEnabled: isMetronomeEnabled,
             ),
             if (isMetronomeEnabled)
@@ -310,6 +314,7 @@ class _TabPlayerScreenState extends ConsumerState<TabPlayerScreen>
     required Articulation selectedArticulation,
     required List<double> tapTempoHistory,
     DetectedKey? detectedKey,
+    DetectedScale? detectedScale,
     required bool isMetronomeEnabled,
   }) {
     return Container(
@@ -330,6 +335,8 @@ class _TabPlayerScreenState extends ConsumerState<TabPlayerScreen>
             const SizedBox(width: 10),
             if (detectedKey != null) _keyChip(detectedKey),
             if (detectedKey != null) const SizedBox(width: 10),
+            if (detectedScale != null) _scaleChip(detectedScale),
+            if (detectedScale != null) const SizedBox(width: 10),
             _articulationChip(selectedArticulation),
             const SizedBox(width: 10),
             _durationChip(selectedDuration),
@@ -708,6 +715,54 @@ class _TabPlayerScreenState extends ConsumerState<TabPlayerScreen>
     );
   }
 
+  Widget _scaleChip(DetectedScale scale) {
+    final Color confidenceColor = scale.confidence > 0.7
+        ? _accentGreen
+        : scale.confidence > 0.5
+            ? const Color(0xFFF59E0B)
+            : _textMuted;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+            color: confidenceColor.withValues(alpha: 0.5), width: 1.2),
+        color: confidenceColor.withValues(alpha: 0.1),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.queue_music,
+            size: 13,
+            color: confidenceColor,
+          ),
+          const SizedBox(width: 4),
+          Text(
+            scale.displayName,
+            style: GoogleFonts.outfit(
+              fontSize: 13,
+              fontWeight: FontWeight.bold,
+              color: confidenceColor,
+            ),
+          ),
+          if (scale.confidence > 0.3) ...[
+            const SizedBox(width: 4),
+            Text(
+              '(${(scale.confidence * 100).round()})',
+              style: GoogleFonts.outfit(
+                fontSize: 10,
+                fontWeight: FontWeight.w500,
+                color: confidenceColor.withValues(alpha: 0.8),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
   Widget _articulationChip(Articulation articulation) {
     final bool isActive = articulation != Articulation.none;
     final Color chipColor = isActive ? const Color(0xFFF59E0B) : _textMuted;
@@ -1058,6 +1113,8 @@ class _TabPlayerScreenState extends ConsumerState<TabPlayerScreen>
                     ref.watch(tabPlayerProvider.select((s) => s.measures));
                 final playheadPosition =
                     ref.watch(tabPlayerProvider.select((s) => s.playheadPosition));
+                final detectedScale =
+                    ref.watch(tabPlayerProvider.select((s) => s.detectedScale));
                 return GestureDetector(
                   onTapUp: (details) {
                     _handleFretboardTap(
@@ -1068,6 +1125,7 @@ class _TabPlayerScreenState extends ConsumerState<TabPlayerScreen>
                     painter: FretboardPainter(
                       playheadPosition: playheadPosition,
                       measures: measures,
+                      detectedScale: detectedScale,
                     ),
                     child: const SizedBox.expand(),
                   ),
@@ -1637,10 +1695,12 @@ class TabNotationPainter extends CustomPainter {
 class FretboardPainter extends CustomPainter {
   final double playheadPosition;
   final List<TabMeasure> measures;
+  final DetectedScale? detectedScale;
 
   FretboardPainter({
     required this.playheadPosition,
     required this.measures,
+    this.detectedScale,
   });
 
   @override
@@ -1765,6 +1825,28 @@ class FretboardPainter extends CustomPainter {
           Offset((prevX + currX) / 2 - 3, size.height - 14));
     }
 
+    // Scale tone overlay: green dot = in scale, dim red = outside scale
+    final scale = detectedScale;
+    if (scale != null) {
+      // Pitch class of each open string, string 1 = High E
+      const openPitchClasses = [4, 11, 7, 2, 9, 4];
+      final scaleDotPaint = Paint();
+      for (int s = 0; s < 6; s++) {
+        final double noteY = (s + 1) * stringSpacing;
+        for (int f = 0; f <= totalFrets; f++) {
+          final int pitchClass = (openPitchClasses[s] + f) % 12;
+          final bool inScale = scale.isInScale(pitchClass);
+          final double noteX = f == 0
+              ? 15.0
+              : (fretPositions[f - 1] + fretPositions[f]) / 2;
+          scaleDotPaint.color = inScale
+              ? const Color(0xFF10B981).withValues(alpha: 0.35)
+              : const Color(0xFFEF4444).withValues(alpha: 0.18);
+          canvas.drawCircle(Offset(noteX, noteY), 2.2, scaleDotPaint);
+        }
+      }
+    }
+
     // Active notes
     final activeNotes = _getActiveNotesAt(playheadPosition);
     for (var note in activeNotes) {
@@ -1828,6 +1910,7 @@ class FretboardPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant FretboardPainter oldDelegate) {
     return oldDelegate.playheadPosition != playheadPosition ||
-        oldDelegate.measures != measures;
+        oldDelegate.measures != measures ||
+        oldDelegate.detectedScale != detectedScale;
   }
 }

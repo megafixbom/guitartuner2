@@ -25,6 +25,7 @@
 - [x] **Chord detection** (v1.6.0) — Multi-pitch spectral peaks + chord template matching
 - [x] **Unified recording** — Single audio buffer feeds key + tempo + chord detection
 - [x] **Smart Metronome** (v1.7.0) — Click track synced to tempo/time signature with subdivisions, accents, sound & volume control
+- [x] **Scale Detection** (v1.8.0) — Scale patterns + matching for monophonic lead passages
 
 ---
 
@@ -38,6 +39,19 @@
 - [x] MetronomeService in `lib/services/metronome_service.dart`
 - [x] Metronome toggle chip + control bar UI
 - [x] 9 synthesized click assets in `assets/sounds/`
+
+---
+
+## v1.8.0 — Scale Detection (DONE 2026-08-02)
+
+- [x] Analyze monophonic passages for scale patterns
+- [x] Detect: major, minor, pentatonic, blues, modes (Dorian, Phrygian, Lydian, Mixolydian, Locrian)
+- [x] Display "Scale: A Minor Pentatonic" in toolbar next to key chip
+- [x] Color-code fretboard: green = scale tone, red = non-scale tone
+- [x] ScaleDetector service in `lib/services/scale_detector.dart`
+- [x] `DetectedScale` model + `isInScale()` helper
+- [ ] Suggest compatible scales for detected chord progression
+- [ ] Arpeggio detection (outline chord tones in solo playing)
 
 ---
 
@@ -226,14 +240,6 @@
 ---
 
 ## TODO — Future Implementations (Not Started)
-
-### v1.8.0 — Scale Detection for Lead Sections
-- [ ] Analyze monophonic passages for scale patterns
-- [ ] Detect: major, minor, pentatonic, blues, modes (Dorian, Phrygian, Lydian, Mixolydian, Locrian)
-- [ ] Display "Scale: A Minor Pentatonic" in toolbar next to key chip
-- [ ] Color-code fretboard: green = scale tone, red = non-scale tone
-- [ ] Suggest compatible scales for detected chord progression
-- [ ] Arpeggio detection (outline chord tones in solo playing)
 
 ### v1.9.0 — Pitch Shifting / Key Transposition
 - [ ] Phase vocoder for pitch shifting (independent of tempo)

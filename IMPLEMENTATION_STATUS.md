@@ -1,14 +1,14 @@
 # GuitarTuner Implementation Status — Verification Report
 
-**Date:** 2026-07-30  
-**Version:** 1.6.0  
-**Last Commit:** `a8cd573`
+**Date:** 2026-08-02  
+**Version:** 1.8.0  
+**Last Commit:** `c293665`
 
 ---
 
 ## ✅ Verified: Completed Features
 
-### Moises AI-Style Feature Set (4 of 7 implemented)
+### Moises AI-Style Feature Set (5 of 7 implemented)
 
 | Feature | Version | Status | Files | Verification |
 |---------|---------|--------|-------|--------------|
@@ -16,6 +16,7 @@
 | **BPM Detection** | v1.5.0 | ✅ DONE | `tempo_detector.dart`, `tab_player_state.dart`, `tab_player_screen.dart` | Spectral flux onset detection, IOI histogram, beat grid generation |
 | **Chord Detection** | v1.6.0 | ✅ DONE | `chord_detector.dart`, `tab_player_state.dart`, `tab_player_screen.dart` | Multi-pitch detection, chord template matching, progression display |
 | **Smart Metronome** | v1.7.0 | ✅ DONE | `metronome_service.dart`, `tab_player_state.dart`, `tab_player_screen.dart` | Click track synced to tempo/time sig, subdivisions, accents, sound & volume control |
+| **Scale Detection** | v1.8.0 | ✅ DONE | `scale_detector.dart`, `tab_player_state.dart`, `tab_player_screen.dart` | 12 scale patterns, coverage + tonic emphasis matching, toolbar chip, fretboard scale-tone overlay |
 | **BPM Control** | — | ✅ Already had | `tab_player_screen.dart` | Manual +/- buttons, tap tempo |
 | **Lyric Transcription** | v2.0.0 | ⏳ TODO | — | — |
 | **Pitch Shifting** | v1.9.0 | ⏳ TODO | — | — |
@@ -161,16 +162,17 @@ User Records Guitar (single stream)
          ↓
     _recordedAudioSamples (unified buffer)
          ↓
-   ┌─────┴─────┬────────────┐
-   ↓           ↓            ↓
-TempoDetect  ChordDetect  KeyDetect
-(FFT+IOI)    (Peaks+Match) (Histogram)
-   ↓           ↓            ↓
-DetectedTempo DetectedChord DetectedKey
-   ↓           ↓            ↓
-  BPM:120    Am-G-C-F      Em
-   ↓           ↓            ↓
-  Toolbar    Above Staff   Toolbar + Key Sig
+   ┌──────┴─────┬────────────┬─────────────┐
+   ↓            ↓            ↓             ↓
+TempoDetect  ChordDetect  KeyDetect    ScaleDetect
+(FFT+IOI)    (Peaks+Match) (Histogram)  (Histogram+patterns)
+   ↓            ↓            ↓             ↓
+DetectedTempo DetectedChord DetectedKey  DetectedScale
+   ↓            ↓            ↓             ↓
+  BPM:120    Am-G-C-F      Em          A Minor Pentatonic
+   ↓            ↓            ↓             ↓
+  Toolbar    Above Staff   Toolbar +    Toolbar + Fretboard
+                            Key Sig     scale-tone overlay
 ```
 
 ---
@@ -179,17 +181,17 @@ DetectedTempo DetectedChord DetectedKey
 
 ### Next Features (Pick One)
 
-**Option 1: Scale Detection (v1.8.0) — 2-3 days**
-- ✅ Foundation ready (pitch class histogram)
-- Need: Scale pattern database, compatibility algorithm
-
-**Option 2: Pitch Shifting (v1.9.0) — 3-4 days**
+**Option 1: Pitch Shifting (v1.9.0) — 3-4 days**
 - Need: Phase vocoder implementation (no existing foundation)
 
-**Option 3: Lyric Transcription (v2.0.0) — 3-5 days**
+**Option 2: Lyric Transcription (v2.0.0) — 3-5 days**
 - Need: Whisper API / Speech-to-Text integration + vocal separation
 
-**Recommended:** Start with **v1.8.0 Scale Detection** (builds on the pitch class histogram used by key detection)
+**Option 3: Scale Detection follow-ups (v1.8.0) — 1-2 days**
+- Suggest compatible scales for detected chord progression
+- Arpeggio detection (outline chord tones in lead playing)
+
+**Recommended:** Start with **v1.9.0 Pitch Shifting** (phase vocoder, transposition)
 
 ---
 

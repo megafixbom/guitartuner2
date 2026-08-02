@@ -38,8 +38,8 @@ enum _ClickRole { downbeat, beat, subdivision }
 /// - `metronome_{sound}_{role}.wav` where sound = woodblock|beep|stick and
 ///   role = strong|weak|sub.
 ///
-/// TODO (Future - v1.8.0): Scale detection can reuse the same audio buffer;
-/// this service only handles the click track.
+/// TODO (Future - v1.9.0): Pitch shifting / key transposition; scale
+/// detection reuses the shared audio buffer (see scale_detector.dart).
 class MetronomeService {
   final AudioPlayer _downbeatPlayer = AudioPlayer();
   final AudioPlayer _beatPlayer = AudioPlayer();

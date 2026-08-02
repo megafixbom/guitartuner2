@@ -1,14 +1,14 @@
 # GuitarTuner Implementation Status — Verification Report
 
 **Date:** 2026-08-02  
-**Version:** 1.9.0  
-**Last Commit:** `075dee6`
+**Version:** 2.0.0  
+**Last Commit:** `ddfae9a`
 
 ---
 
 ## ✅ Verified: Completed Features
 
-### Moises AI-Style Feature Set (6 of 7 implemented)
+### Moises AI-Style Feature Set (7 of 7 implemented — COMPLETE)
 
 | Feature | Version | Status | Files | Verification |
 |---------|---------|--------|-------|--------------|
@@ -18,8 +18,8 @@
 | **Smart Metronome** | v1.7.0 | ✅ DONE | `metronome_service.dart`, `tab_player_state.dart`, `tab_player_screen.dart` | Click track synced to tempo/time sig, subdivisions, accents, sound & volume control |
 | **Scale Detection** | v1.8.0 | ✅ DONE | `scale_detector.dart`, `tab_player_state.dart`, `tab_player_screen.dart` | 12 scale patterns, coverage + tonic emphasis matching, toolbar chip, fretboard scale-tone overlay |
 | **Pitch Control** | v1.9.0 | ✅ DONE | `pitch_shifter.dart`, `tab_player_state.dart`, `tab_player_screen.dart` | Phase vocoder transposition ±12 semitones, WAV encoder, tone synth, transposed tab/recording playback |
+| **Lyric Transcription** | v2.0.0 | ✅ DONE | `lyrics_transcriber.dart`, `vocal_detector.dart`, `tab_player_state.dart`, `tab_player_screen.dart` | Whisper API, timestamped lyrics, karaoke highlight, LRC export |
 | **BPM Control** | — | ✅ Already had | `tab_player_screen.dart` | Manual +/- buttons, tap tempo |
-| **Lyric Transcription** | v2.0.0 | ⏳ TODO | — | — |
 
 ---
 
@@ -55,10 +55,15 @@ void toggleRecording() {
 |------|--------|-------|---------|
 | `lib/services/tempo_detector.dart` | ✅ | 170 | BPM detection algorithm |
 | `lib/services/chord_detector.dart` | ✅ | 294 | Chord detection algorithm |
-| `lib/state/tab_player_state.dart` | ✅ | 1025 | State + detection orchestration |
-| `lib/views/tab_player_screen.dart` | ✅ | 1609 | UI with key/BPM/chord display |
+| `lib/services/scale_detector.dart` | ✅ | 150 | Scale detection algorithm |
+| `lib/services/pitch_shifter.dart` | ✅ | 300 | Phase-vocoder pitch shifting |
+| `lib/services/lyrics_transcriber.dart` | ✅ | 230 | Whisper lyric transcription + LRC |
+| `lib/services/vocal_detector.dart` | ✅ | 130 | Vocal-activity detection |
+| `lib/state/tab_player_state.dart` | ✅ | 1250 | State + detection orchestration |
+| `lib/views/tab_player_screen.dart` | ✅ | 2100 | UI with key/BPM/chord/scale/lyrics display |
 | `BPM_DETECTION_GUIDE.md` | ✅ | 243 | User guide |
 | `CHORD_DETECTION_GUIDE.md` | ✅ | 398 | User guide |
+| `LYRICS_TRANSCRIPTION_GUIDE.md` | ✅ | 110 | User guide |
 | `USER_GUIDE.md` | ✅ | 425 | Complete manual |
 | `MOISES_FEATURES_PLAN.md` | ✅ | 293 | Implementation roadmap |
 
@@ -115,7 +120,7 @@ c0899be feat: automatic musical key detection with key signature display
 | **Key Finder** | ✅ | ✅ Auto-detect | ✅ Implemented |
 | **Pitch Control** | ✅ Shift | ✅ Phase-vocoder ±12 st | ✅ Implemented v1.9.0 |
 | **BPM Controls** | ✅ Auto+Adjust | ✅ Auto+Adjust | ✅ Implemented |
-| **Lyric Transcrip.** | ✅ | ❌ | ⏳ v2.0.0 |
+| **Lyric Transcrip.** | ✅ | ✅ Whisper + LRC | ✅ Implemented v2.0.0 |
 | **Smart Metronome** | ✅ | ✅ | ✅ v1.7.0 |
 | **Scale Detection** | ⚠️ Limited | ✅ 12 patterns | ✅ Implemented v1.8.0 |
 | **Tablature** | ❌ | ✅ | ✅ Unique feature |
@@ -162,15 +167,16 @@ User Records Guitar (single stream)
          ↓
     _recordedAudioSamples (unified buffer)
          ↓
-   ┌──────┴─────┬────────────┬─────────────┐
-   ↓            ↓            ↓             ↓
-TempoDetect  ChordDetect  KeyDetect    ScaleDetect
-(FFT+IOI)    (Peaks+Match) (Histogram)  (Histogram+patterns)
-   ↓            ↓            ↓             ↓
-DetectedTempo DetectedChord DetectedKey  DetectedScale
-   ↓            ↓            ↓             ↓
-  BPM:120    Am-G-C-F      Em          A Minor Pentatonic
-   ↓            ↓            ↓             ↓
+   ┌──────┴─────┬────────────┬─────────────┬─────────────┐
+   ↓            ↓            ↓             ↓             ↓
+TempoDetect  ChordDetect  KeyDetect    ScaleDetect   LyricTranscribe
+(FFT+IOI)    (Peaks+Match) (Histogram)  (Histogram+  (Whisper API +
+                                            patterns)   vocal detect)
+   ↓            ↓            ↓             ↓             ↓
+DetectedTempo DetectedChord DetectedKey  DetectedScale  LyricLine[]
+   ↓            ↓            ↓             ↓             ↓
+  BPM:120    Am-G-C-F      Em          A Minor Pent.   Karaoke panel
+   ↓            ↓            ↓             ↓             + LRC export
   Toolbar    Above Staff   Toolbar +    Toolbar + Fretboard
                             Key Sig     scale-tone overlay
 ```
@@ -179,19 +185,19 @@ DetectedTempo DetectedChord DetectedKey  DetectedScale
 
 ## 🎯 Ready for Tomorrow's Work
 
-### Next Features (Pick One)
+### All Moises AI features are now implemented (7/7).
 
-**Option 1: Lyric Transcription (v2.0.0) — 3-5 days**
-- Need: Whisper API / Speech-to-Text integration + vocal separation
+Remaining candidate work (see `FEATURE_IDEAS.md`):
 
-**Option 2: Scale Detection follow-ups (v1.8.0) — 1-2 days**
-- Suggest compatible scales for detected chord progression
-- Arpeggio detection (outline chord tones in lead playing)
+**Option 1: Lyric follow-ups (v2.1.0) — 1-2 days**
+- Export lyrics as an actual `.lrc` file to disk
+- On-device TFLite Whisper for offline transcription
 
-**Option 3: Pitch Shift follow-up (v1.9.0) — 1 day**
-- Real-time pitch shift monitoring during recording
+**Option 2: Practice feedback — 2-3 days**
+- Score recorded playback against the tab (per-note pitch/timing)
 
-**Recommended:** Start with **v2.0.0 Lyric Transcription** (last Moises feature)
+**Option 3: PDF / MusicXML / MIDI export — 2-3 days**
+- Share tabs with Guitar Pro and other notation tools
 
 ---
 

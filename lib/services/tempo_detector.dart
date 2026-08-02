@@ -11,8 +11,7 @@ import 'dart:typed_data';
 /// 5. Find most common IOI → convert to BPM
 /// 6. Refine with beat grid estimation
 ///
-/// TODO (Future - v2.0.0): Lyric transcription (vocal activity detection)
-/// - Whisper API / Google Speech-to-Text integration
+/// TODO (Future - v2.1.0): On-device TFLite Whisper (offline lyrics)
 class TempoDetector {
   final int sampleRate;
   final double minBpm;

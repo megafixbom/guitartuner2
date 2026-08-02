@@ -12,6 +12,8 @@ import '../services/chord_detector.dart';
 import '../services/metronome_service.dart';
 import '../services/scale_detector.dart';
 import '../services/pitch_shifter.dart';
+import '../services/lyrics_transcriber.dart';
+import '../services/vocal_detector.dart';
 
 enum NoteDuration {
   whole,
@@ -312,6 +314,10 @@ class TabPlayerState {
   final DetectedScale? detectedScale;
   final int transposeSemitones;
   final bool hasRecording;
+  final List<LyricLine> detectedLyrics;
+  final List<VocalSegment> vocalSegments;
+  final bool isTranscribingLyrics;
+  final String lyricsError;
   final bool isMetronomeEnabled;
   final MetronomeSubdivision metronomeSubdivision;
   final MetronomeSound metronomeSound;
@@ -337,6 +343,10 @@ class TabPlayerState {
     this.detectedScale,
     this.transposeSemitones = 0,
     this.hasRecording = false,
+    this.detectedLyrics = const [],
+    this.vocalSegments = const [],
+    this.isTranscribingLyrics = false,
+    this.lyricsError = '',
     this.isMetronomeEnabled = false,
     this.metronomeSubdivision = MetronomeSubdivision.quarter,
     this.metronomeSound = MetronomeSound.woodblock,
@@ -363,6 +373,10 @@ class TabPlayerState {
     DetectedScale? detectedScale,
     int? transposeSemitones,
     bool? hasRecording,
+    List<LyricLine>? detectedLyrics,
+    List<VocalSegment>? vocalSegments,
+    bool? isTranscribingLyrics,
+    String? lyricsError,
     bool? isMetronomeEnabled,
     MetronomeSubdivision? metronomeSubdivision,
     MetronomeSound? metronomeSound,
@@ -388,6 +402,10 @@ class TabPlayerState {
       detectedScale: detectedScale ?? this.detectedScale,
       transposeSemitones: transposeSemitones ?? this.transposeSemitones,
       hasRecording: hasRecording ?? this.hasRecording,
+      detectedLyrics: detectedLyrics ?? this.detectedLyrics,
+      vocalSegments: vocalSegments ?? this.vocalSegments,
+      isTranscribingLyrics: isTranscribingLyrics ?? this.isTranscribingLyrics,
+      lyricsError: lyricsError ?? this.lyricsError,
       isMetronomeEnabled: isMetronomeEnabled ?? this.isMetronomeEnabled,
       metronomeSubdivision: metronomeSubdivision ?? this.metronomeSubdivision,
       metronomeSound: metronomeSound ?? this.metronomeSound,
@@ -911,6 +929,62 @@ class TabPlayerNotifier extends StateNotifier<TabPlayerState> {
     } catch (_) {}
   }
 
+  /// Transcribe the recorded audio into timestamped lyrics (v2.0.0).
+  Future<void> transcribeRecordingLyrics({String? apiKey}) async {
+    if (state.isTranscribingLyrics) return;
+    if (_recordedAudioSamples.length < 1000) {
+      state = state.copyWith(lyricsError: 'No recording to transcribe.');
+      return;
+    }
+    state = state.copyWith(isTranscribingLyrics: true, lyricsError: '');
+    try {
+      final samples = Float32List.fromList(_recordedAudioSamples);
+      final lyrics = await LyricsTranscriber().transcribeAudio(
+        samples,
+        apiKey: apiKey,
+        sampleRate: 16000,
+      );
+      final aligned = LyricsTranscriber.withTightenedEnds(lyrics);
+      final vocals =
+          VocalActivityDetector().detectVocalSegments(samples, 16000);
+      state = state.copyWith(
+        detectedLyrics: aligned,
+        vocalSegments: vocals,
+        isTranscribingLyrics: false,
+      );
+    } catch (e) {
+      state = state.copyWith(
+        isTranscribingLyrics: false,
+        lyricsError: e.toString(),
+      );
+    }
+  }
+
+  /// Load lyric lines from an LRC string.
+  void loadLyricsFromLrc(String lrc) {
+    final lyrics = LyricsTranscriber.parseLrc(lrc);
+    state = state.copyWith(
+      detectedLyrics: LyricsTranscriber.withTightenedEnds(lyrics),
+      lyricsError: '',
+    );
+  }
+
+  /// Export current lyrics as an LRC string, or null when there are none.
+  String? exportLyricsLrc() {
+    if (state.detectedLyrics.isEmpty) return null;
+    return LyricsTranscriber.toLrc(state.detectedLyrics);
+  }
+
+  /// Clear transcribed lyrics and vocal segments.
+  void clearLyrics() {
+    state = state.copyWith(
+      detectedLyrics: const [],
+      vocalSegments: const [],
+      isTranscribingLyrics: false,
+      lyricsError: '',
+    );
+  }
+
   /// Toggle the smart metronome click track.
   void toggleMetronome() {
     final bool newEnabled = !state.isMetronomeEnabled;
@@ -1066,6 +1140,10 @@ class TabPlayerNotifier extends StateNotifier<TabPlayerState> {
       detectedChords: const [],
       transposeSemitones: 0,
       hasRecording: false,
+      detectedLyrics: const [],
+      vocalSegments: const [],
+      isTranscribingLyrics: false,
+      lyricsError: '',
       playheadPosition: 0.0,
       totalMeasures: 4,
       measures: List.generate(4, (i) => TabMeasure(number: i + 1, notes: const [])),

@@ -1,10 +1,12 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../state/tab_player_state.dart';
 import '../state/tuner_state.dart';
 import '../services/chord_detector.dart';
+import '../services/lyrics_transcriber.dart';
 import '../services/metronome_service.dart';
 import '../services/scale_detector.dart';
 
@@ -123,6 +125,12 @@ class _TabPlayerScreenState extends ConsumerState<TabPlayerScreen>
         ref.watch(tabPlayerProvider.select((s) => s.transposeSemitones));
     final hasRecording =
         ref.watch(tabPlayerProvider.select((s) => s.hasRecording));
+    final detectedLyrics =
+        ref.watch(tabPlayerProvider.select((s) => s.detectedLyrics));
+    final isTranscribingLyrics =
+        ref.watch(tabPlayerProvider.select((s) => s.isTranscribingLyrics));
+    final lyricsError =
+        ref.watch(tabPlayerProvider.select((s) => s.lyricsError));
     final isMetronomeEnabled =
         ref.watch(tabPlayerProvider.select((s) => s.isMetronomeEnabled));
     final metronomeSubdivision =
@@ -182,6 +190,7 @@ class _TabPlayerScreenState extends ConsumerState<TabPlayerScreen>
               detectedScale: detectedScale,
               transposeSemitones: transposeSemitones,
               hasRecording: hasRecording,
+              isTranscribingLyrics: isTranscribingLyrics,
               isMetronomeEnabled: isMetronomeEnabled,
             ),
             if (isMetronomeEnabled)
@@ -196,6 +205,14 @@ class _TabPlayerScreenState extends ConsumerState<TabPlayerScreen>
               child: _buildScoreCanvas(),
             ),
             _buildFretboardSection(),
+            if (detectedLyrics.isNotEmpty ||
+                isTranscribingLyrics ||
+                lyricsError.isNotEmpty)
+              _buildLyricsPanel(
+                lyrics: detectedLyrics,
+                isTranscribing: isTranscribingLyrics,
+                error: lyricsError,
+              ),
           ],
         ),
       ),
@@ -323,6 +340,7 @@ class _TabPlayerScreenState extends ConsumerState<TabPlayerScreen>
     DetectedScale? detectedScale,
     required int transposeSemitones,
     required bool hasRecording,
+    required bool isTranscribingLyrics,
     required bool isMetronomeEnabled,
   }) {
     return Container(
@@ -340,6 +358,8 @@ class _TabPlayerScreenState extends ConsumerState<TabPlayerScreen>
             _metronomeToggleChip(isMetronomeEnabled),
             const SizedBox(width: 12),
             _transposeControl(transposeSemitones, hasRecording),
+            const SizedBox(width: 12),
+            _lyricsChip(hasRecording, isTranscribingLyrics),
             const SizedBox(width: 12),
             _bpmControl(currentBpm),
             const SizedBox(width: 10),
@@ -449,6 +469,185 @@ class _TabPlayerScreenState extends ConsumerState<TabPlayerScreen>
         ],
       ),
     );
+  }
+
+  Widget _lyricsChip(bool hasRecording, bool isTranscribing) {
+    final bool enabled = hasRecording && !isTranscribing;
+    final Color color = enabled ? const Color(0xFFF472B6) : _textMuted;
+
+    return GestureDetector(
+      onTap: enabled
+          ? () => ref.read(tabPlayerProvider.notifier).transcribeRecordingLyrics()
+          : null,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+              color: enabled ? color.withValues(alpha: 0.5) : _borderSubtle),
+          color: enabled ? color.withValues(alpha: 0.12) : Colors.transparent,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (isTranscribing)
+              const SizedBox(
+                width: 11,
+                height: 11,
+                child: CircularProgressIndicator(
+                  strokeWidth: 1.6,
+                  color: _accentCyan,
+                ),
+              )
+            else
+              Icon(Icons.subtitles_outlined, size: 13, color: color),
+            const SizedBox(width: 4),
+            Text(
+              isTranscribing ? 'LRC…' : 'LRC',
+              style: GoogleFonts.outfit(
+                fontSize: 10,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 0.5,
+                color: color,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLyricsPanel({
+    required List<LyricLine> lyrics,
+    required bool isTranscribing,
+    required String error,
+  }) {
+    final playheadSeconds = _playheadPositionToSeconds();
+    return Container(
+      height: 150,
+      margin: const EdgeInsets.fromLTRB(12, 0, 12, 10),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: _surfaceDark,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: _borderSubtle),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                'LYRICS',
+                style: GoogleFonts.outfit(
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 1.5,
+                  color: _textMuted,
+                ),
+              ),
+              const Spacer(),
+              if (lyrics.isNotEmpty) ...[
+                IconButton(
+                  visualDensity: VisualDensity.compact,
+                  iconSize: 15,
+                  padding: EdgeInsets.zero,
+                  constraints:
+                      const BoxConstraints(minWidth: 24, minHeight: 24),
+                  icon: const Icon(Icons.copy, size: 14, color: _textMuted),
+                  onPressed: () async {
+                    final lrc =
+                        ref.read(tabPlayerProvider.notifier).exportLyricsLrc();
+                    if (lrc != null) {
+                      await Clipboard.setData(ClipboardData(text: lrc));
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('LRC copied to clipboard'),
+                            duration: Duration(seconds: 1),
+                          ),
+                        );
+                      }
+                    }
+                  },
+                ),
+                IconButton(
+                  visualDensity: VisualDensity.compact,
+                  iconSize: 15,
+                  padding: EdgeInsets.zero,
+                  constraints:
+                      const BoxConstraints(minWidth: 24, minHeight: 24),
+                  icon: const Icon(Icons.close, size: 14, color: _textMuted),
+                  onPressed: () =>
+                      ref.read(tabPlayerProvider.notifier).clearLyrics(),
+                ),
+              ],
+            ],
+          ),
+          const SizedBox(height: 4),
+          if (isTranscribing)
+            const Expanded(
+              child: Center(
+                child: Text(
+                  'Transcribing lyrics…',
+                  style: TextStyle(color: _textMuted, fontSize: 12),
+                ),
+              ),
+            )
+          else if (error.isNotEmpty)
+            Expanded(
+              child: SingleChildScrollView(
+                child: Text(
+                  error,
+                  style: const TextStyle(
+                      color: Color(0xFFF87171), fontSize: 11),
+                ),
+              ),
+            )
+          else if (lyrics.isEmpty)
+            const Expanded(
+              child: Center(
+                child: Text(
+                  'Record a take, then tap LRC to transcribe lyrics.',
+                  style: TextStyle(color: _textMuted, fontSize: 12),
+                ),
+              ),
+            )
+          else
+            Expanded(
+              child: ListView.builder(
+                itemCount: lyrics.length,
+                itemBuilder: (context, index) {
+                  final line = lyrics[index];
+                  final bool active =
+                      playheadSeconds >= line.start && playheadSeconds < line.end;
+                  return AnimatedDefaultTextStyle(
+                    duration: const Duration(milliseconds: 120),
+                    style: GoogleFonts.outfit(
+                      fontSize: active ? 15 : 13,
+                      fontWeight: active ? FontWeight.w800 : FontWeight.w400,
+                      color: active ? _accentCyan : _textMuted,
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 2),
+                      child: Text(
+                        line.text,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  double _playheadPositionToSeconds() {
+    final s = ref.read(tabPlayerProvider);
+    return s.playheadPosition * 60.0 / s.currentBpm;
   }
 
   Widget _buildMetronomeBar({

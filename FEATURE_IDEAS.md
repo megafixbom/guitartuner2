@@ -34,7 +34,7 @@ Prioritized ideas for GuitarTuner beyond the current roadmap
 | 10 | **Strumming-pattern recognition** | Arrows above staff from detected strums |
 | 11 | **Genre / playing-style classification** | Small classifier over chroma/rhythm features |
 | 12 | **Multi-track tabs** | Lead + rhythm + bass on separate tracks |
-| 13 | **AI-assisted full-song transcription** | Audio → tab; pairs with lyric transcription (v2.0.0) |
+| 13 | **AI-assisted full-song transcription** | Audio → tab; lyric transcription (v2.0.0) already provides the vocal path |
 
 ## P4 — UI / DX polish
 
@@ -51,11 +51,11 @@ Prioritized ideas for GuitarTuner beyond the current roadmap
 
 ## Suggested next picks
 
-1. **Lyric transcription (v2.0.0)** — the roadmap's next feature and the last
-   Moises-comparison item; needs Whisper / Speech-to-Text integration.
-2. **Practice feedback** — high value for users, builds on the recording and
+1. **Practice feedback** — high value for users, builds on the recording and
    playback pipeline already in place.
-3. **PDF/MusicXML export** — unlocks sharing and interop with notation tools.
+2. **PDF/MusicXML export** — unlocks sharing and interop with notation tools.
+3. **Lyric follow-ups (v2.1.0)** — on-device TFLite Whisper for offline
+   transcription and actual `.lrc` file export.
 
 ---
 

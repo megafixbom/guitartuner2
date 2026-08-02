@@ -83,14 +83,25 @@ All notable changes to the GuitarTuner app are documented in this file.
 
 ---
 
+## [2.0.0] — 2026-08-02
+
+### Lyric Transcription
+- **LyricsTranscriber Service**: New `lib/services/lyrics_transcriber.dart` uploads the unified recording buffer (WAV) to the OpenAI Whisper `transcriptions` endpoint and parses timestamped segments/words into `LyricLine`/`LyricWord` models.
+- **API Key Handling**: User-provided key via `--dart-define=USER_WHISPER_API_KEY=...` (or passed at runtime); no key is read from the agent environment.
+- **LRC Support**: `toLrc()` exports timestamped lyrics to the LRC (LyRiCs) format; `parseLrc()` imports LRC files; `withTightenedEnds()` aligns each line's end to the next line's start for karaoke display.
+- **VocalActivityDetector**: New `lib/services/vocal_detector.dart` locates vocal regions with a dominant-frequency/RMS heuristic (voice band ~80-500 Hz) and merges them into `VocalSegment`s.
+- **State Integration**: `detectedLyrics`, `vocalSegments`, `isTranscribingLyrics`, `lyricsError` fields with `transcribeRecordingLyrics`, `loadLyricsFromLrc`, `exportLyricsLrc`, and `clearLyrics` notifier methods.
+- **UI**: LRC transcribe chip in the toolbar (enabled when a recording exists, shows a spinner while transcribing) and a karaoke lyrics panel below the fretboard that highlights the active line as the playhead advances, with copy-to-clipboard LRC export.
+- **Tests**: 10 new unit tests (Whisper parsing, LRC export/import round-trip, end tightening, vocal detection, copyWith) — 38 total.
+
+---
+
 ## [Future] — TODO
 
-### v2.0.0: Lyric Transcription
-- [ ] Whisper API / Google Speech-to-Text integration
-- [ ] Vocal detection (separate from guitar)
-- [ ] Timestamp-aligned lyrics
-- [ ] Karaoke-style highlighting during playback
-- [ ] Export as LRC file
+### v2.1.0: Lyric follow-ups
+- [ ] On-device transcription via TFLite Whisper (offline)
+- [ ] Guitar/vocal source separation (Demucs/Spleeter) for better vocal-activity accuracy
+- [ ] Export lyrics as LRC file (not just clipboard)
 
 ---
 

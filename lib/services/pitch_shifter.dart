@@ -11,7 +11,7 @@
 /// phases (frequencies) are modified, timbre/formants are preserved far better
 /// than plain resampling ("chipmunk" effect is minimized).
 ///
-/// TODO (Future - v2.0.0): Lyric transcription
+/// TODO (Future - v2.1.0): On-device TFLite Whisper (offline lyrics)
 library;
 
 import 'dart:math' as math;

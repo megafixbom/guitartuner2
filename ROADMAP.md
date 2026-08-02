@@ -27,6 +27,7 @@
 - [x] **Smart Metronome** (v1.7.0) — Click track synced to tempo/time signature with subdivisions, accents, sound & volume control
 - [x] **Scale Detection** (v1.8.0) — Scale patterns + matching for monophonic lead passages
 - [x] **Pitch Shifting / Key Transposition** (v1.9.0) — Phase vocoder transposition ±12 semitones
+- [x] **Lyric Transcription** (v2.0.0) — Whisper API integration, timestamp-aligned lyrics, karaoke highlight, LRC export
 
 ---
 
@@ -65,6 +66,19 @@
 - [x] `transposeSemitones` state + transposed tab/recording playback
 - [x] Transpose control in toolbar with long-press reset
 - [ ] Real-time pitch shift monitoring during recording
+
+---
+
+## v2.0.0 — Lyric Transcription (DONE 2026-08-02)
+
+- [x] Whisper API integration (user-provided key via `--dart-define=USER_WHISPER_API_KEY`)
+- [x] Vocal activity detection (separate guitar from vocals)
+- [x] Timestamp-aligned lyrics (word-level sync)
+- [x] Karaoke-style highlighting during playback
+- [x] Export as LRC file (clipboard)
+- [x] `LyricsTranscriber` + `VocalActivityDetector` services
+- [ ] Export lyrics as an actual LRC file (not just clipboard)
+- [ ] On-device TFLite Whisper (offline transcription)
 
 ---
 
@@ -254,12 +268,10 @@
 
 ## TODO — Future Implementations (Not Started)
 
-### v2.0.0 — Lyric Transcription
-- [ ] Whisper API or Google Speech-to-Text integration
-- [ ] Vocal activity detection (separate guitar from vocals)
-- [ ] Timestamp-aligned lyrics (word-level sync)
-- [ ] Karaoke-style highlighting during playback
-- [ ] Export as LRC file (LyRiCs format)
+### v2.1.0 — Lyric follow-ups
+- [ ] On-device TFLite Whisper (offline transcription)
+- [ ] Guitar/vocal source separation (Demucs/Spleeter)
+- [ ] Export lyrics as LRC file to disk
 
 ---
 

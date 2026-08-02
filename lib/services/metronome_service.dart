@@ -38,8 +38,8 @@ enum _ClickRole { downbeat, beat, subdivision }
 /// - `metronome_{sound}_{role}.wav` where sound = woodblock|beep|stick and
 ///   role = strong|weak|sub.
 ///
-/// TODO (Future - v2.0.0): Lyric transcription; scale detection reuses the
-/// shared audio buffer (see scale_detector.dart).
+/// TODO (Future - v2.1.0): On-device TFLite Whisper (offline lyrics); scale
+/// detection reuses the shared audio buffer (see scale_detector.dart).
 class MetronomeService {
   final AudioPlayer _downbeatPlayer = AudioPlayer();
   final AudioPlayer _beatPlayer = AudioPlayer();

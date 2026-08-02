@@ -3,11 +3,13 @@ import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:guitartuner/services/audio_service.dart';
 import 'package:guitartuner/services/chord_detector.dart';
-import 'package:guitartuner/services/pitch_engine.dart';
+import 'package:guitartuner/services/lyrics_transcriber.dart';
 import 'package:guitartuner/services/metronome_service.dart';
+import 'package:guitartuner/services/pitch_engine.dart';
 import 'package:guitartuner/services/pitch_shifter.dart';
 import 'package:guitartuner/services/scale_detector.dart';
 import 'package:guitartuner/services/tempo_detector.dart';
+import 'package:guitartuner/services/vocal_detector.dart';
 import 'package:guitartuner/state/tab_player_state.dart';
 
 void main() {
@@ -371,6 +373,7 @@ void main() {
         detectedScale: scale,
         transposeSemitones: 3,
         hasRecording: true,
+        detectedLyrics: const [LyricLine(text: 'Hi', start: 0.0, end: 1.0)],
         isMetronomeEnabled: true,
         metronomeSubdivision: MetronomeSubdivision.eighth,
         metronomeSound: MetronomeSound.beep,
@@ -385,6 +388,8 @@ void main() {
       expect(updated.detectedScale!.displayName, equals('A Minor Pentatonic'));
       expect(updated.transposeSemitones, equals(3));
       expect(updated.hasRecording, isTrue);
+      expect(updated.detectedLyrics, hasLength(1));
+      expect(updated.detectedLyrics.first.text, equals('Hi'));
       expect(updated.isMetronomeEnabled, isTrue);
       expect(updated.metronomeSubdivision, MetronomeSubdivision.eighth);
       expect(updated.metronomeSound, MetronomeSound.beep);
@@ -575,6 +580,110 @@ void main() {
         peak = math.max(peak, s.abs());
       }
       expect(peak, greaterThan(0.01));
+    });
+  });
+
+  group('Lyrics Transcriber Unit Tests', () {
+    test('parses Whisper segments and words', () {
+      final json = {
+        'text': ' Hello world',
+        'segments': [
+          {
+            'id': 0,
+            'start': 0.5,
+            'end': 2.0,
+            'text': ' Hello',
+            'words': [
+              {'word': ' Hello', 'start': 0.5, 'end': 1.2},
+              {'word': ' world', 'start': 1.2, 'end': 2.0},
+            ],
+          },
+        ],
+      };
+      final lines = LyricsTranscriber.parseWhisperResponse(json);
+      expect(lines, hasLength(1));
+      expect(lines.first.text, equals('Hello'));
+      expect(lines.first.start, equals(0.5));
+      expect(lines.first.end, equals(2.0));
+      expect(lines.first.words, hasLength(2));
+      expect(lines.first.words.last.word, equals(' world'));
+      expect(lines.first.words.last.start, equals(1.2));
+    });
+
+    test('empty Whisper response yields no lines', () {
+      expect(LyricsTranscriber.parseWhisperResponse({'text': ''}), isEmpty);
+    });
+
+    test('LRC export format', () {
+      const lines = [
+        LyricLine(text: 'Hello', start: 61.5, end: 64.0),
+        LyricLine(text: 'World', start: 64.0, end: 67.0),
+      ];
+      final lrc = LyricsTranscriber.toLrc(lines);
+      expect(lrc, contains('[01:01.50]Hello'));
+      expect(lrc, contains('[01:04.00]World'));
+    });
+
+    test('LRC parse round-trips text and timestamps', () {
+      const lines = [
+        LyricLine(text: 'First line', start: 0.0, end: 2.0),
+        LyricLine(text: 'Second line', start: 2.5, end: 5.0),
+      ];
+      final lrc = LyricsTranscriber.toLrc(lines);
+      final parsed = LyricsTranscriber.parseLrc(lrc);
+      expect(parsed, hasLength(2));
+      expect(parsed[0].text, equals('First line'));
+      expect(parsed[0].start, closeTo(0.0, 0.01));
+      expect(parsed[1].text, equals('Second line'));
+      expect(parsed[1].start, closeTo(2.5, 0.01));
+    });
+
+    test('withTightenedEnds sets each end to the next start', () {
+      const lines = [
+        LyricLine(text: 'A', start: 0.0, end: 99.0),
+        LyricLine(text: 'B', start: 3.0, end: 99.0),
+      ];
+      final tightened = LyricsTranscriber.withTightenedEnds(lines);
+      expect(tightened[0].end, equals(3.0));
+      expect(tightened[1].end, greaterThan(3.0));
+    });
+  });
+
+  group('Vocal Activity Detector Unit Tests', () {
+    const sampleRate = 16000;
+
+    Float32List sineAt(double freq, int length) {
+      final out = Float32List(length);
+      for (int i = 0; i < length; i++) {
+        out[i] = math.sin(2 * math.pi * freq * i / sampleRate);
+      }
+      return out;
+    }
+
+    test('detects a sustained singing-range tone', () {
+      final segments =
+          VocalActivityDetector().detectVocalSegments(sineAt(250.0, sampleRate), sampleRate);
+      expect(segments, isNotEmpty);
+      expect(segments.first.start, lessThanOrEqualTo(0.1));
+    });
+
+    test('ignores sub-voice low bass', () {
+      final segments =
+          VocalActivityDetector().detectVocalSegments(sineAt(60.0, sampleRate), sampleRate);
+      expect(segments, isEmpty);
+    });
+
+    test('ignores silence', () {
+      final segments =
+          VocalActivityDetector().detectVocalSegments(Float32List(sampleRate), sampleRate);
+      expect(segments, isEmpty);
+    });
+
+    test('segment contains() bounds check', () {
+      const seg = VocalSegment(1.0, 2.0);
+      expect(seg.contains(1.5), isTrue);
+      expect(seg.contains(0.5), isFalse);
+      expect(seg.contains(2.0), isFalse);
     });
   });
 }

@@ -67,13 +67,23 @@ All notable changes to the GuitarTuner app are documented in this file.
 
 ---
 
-## [Future] — TODO
+## [1.9.0] — 2026-08-02
 
-### v1.9.0: Pitch Shifting / Key Transposition
-- [ ] Phase vocoder implementation
-- [ ] Transpose ±12 semitones without tempo change
-- [ ] Preserve formants (natural timbre)
-- [ ] Transpose entire recording or real-time monitoring
+### Pitch Shifting / Key Transposition
+- **PitchShifter Service**: New `lib/services/pitch_shifter.dart` transposes an audio buffer ±12 semitones using the classic phase-vocoder algorithm (STFT → phase tracking → synthesis-hop time-stretch → linear resample back to original duration).
+- **FFT**: New `Fft` class (iterative in-place radix-2, forward + inverse) used by the phase vocoder.
+- **Formant Preservation**: The spectral envelope is carried by bin magnitudes while only phases (frequencies) are modified, minimizing the "chipmunk" effect.
+- **WAV Encoder**: `buildWavBytes()` converts float samples to 16-bit mono PCM WAV for playback.
+- **Tone Synth**: `synthTone()` produces a decaying plucked-guitar-like tone for transposed note playback.
+- **State Integration**: `TabPlayerState.transposeSemitones` (clamped ±12) + `hasRecording`, with `setTransposeSemitones`, `transposeUp`, `transposeDown`, and `playTransposedRecording` notifier methods.
+- **Transposed Tab Playback**: When transpose is non-zero, tab playback synthesizes each note at the shifted frequency instead of the static per-string WAV.
+- **Transposed Recording Playback**: `playTransposedRecording()` shifts the unified recording buffer and plays it back through the audio player.
+- **UI**: Transpose control in the toolbar (− / value / +) with long-press-to-reset; a play button appears when a recording exists to preview the transposed take.
+- **Tests**: 6 new unit tests (FFT peak bin, identity shift, ±12 semitones, WAV header, tone synth) — 29 total.
+
+---
+
+## [Future] — TODO
 
 ### v2.0.0: Lyric Transcription
 - [ ] Whisper API / Google Speech-to-Text integration

@@ -11,8 +11,8 @@ import 'dart:typed_data';
 /// 5. Find most common IOI → convert to BPM
 /// 6. Refine with beat grid estimation
 ///
-/// TODO (Future - v1.9.0): Pitch shifting / key transposition
-/// - Phase vocoder for independent tempo/pitch control
+/// TODO (Future - v2.0.0): Lyric transcription (vocal activity detection)
+/// - Whisper API / Google Speech-to-Text integration
 class TempoDetector {
   final int sampleRate;
   final double minBpm;

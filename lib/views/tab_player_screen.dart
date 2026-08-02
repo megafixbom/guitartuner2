@@ -119,6 +119,10 @@ class _TabPlayerScreenState extends ConsumerState<TabPlayerScreen>
         ref.watch(tabPlayerProvider.select((s) => s.detectedKey));
     final detectedScale =
         ref.watch(tabPlayerProvider.select((s) => s.detectedScale));
+    final transposeSemitones =
+        ref.watch(tabPlayerProvider.select((s) => s.transposeSemitones));
+    final hasRecording =
+        ref.watch(tabPlayerProvider.select((s) => s.hasRecording));
     final isMetronomeEnabled =
         ref.watch(tabPlayerProvider.select((s) => s.isMetronomeEnabled));
     final metronomeSubdivision =
@@ -176,6 +180,8 @@ class _TabPlayerScreenState extends ConsumerState<TabPlayerScreen>
               tapTempoHistory: tapTempoHistory,
               detectedKey: detectedKey,
               detectedScale: detectedScale,
+              transposeSemitones: transposeSemitones,
+              hasRecording: hasRecording,
               isMetronomeEnabled: isMetronomeEnabled,
             ),
             if (isMetronomeEnabled)
@@ -315,6 +321,8 @@ class _TabPlayerScreenState extends ConsumerState<TabPlayerScreen>
     required List<double> tapTempoHistory,
     DetectedKey? detectedKey,
     DetectedScale? detectedScale,
+    required int transposeSemitones,
+    required bool hasRecording,
     required bool isMetronomeEnabled,
   }) {
     return Container(
@@ -330,6 +338,8 @@ class _TabPlayerScreenState extends ConsumerState<TabPlayerScreen>
             _modePill(isLiveMicMode: isLiveMicMode),
             const SizedBox(width: 12),
             _metronomeToggleChip(isMetronomeEnabled),
+            const SizedBox(width: 12),
+            _transposeControl(transposeSemitones, hasRecording),
             const SizedBox(width: 12),
             _bpmControl(currentBpm),
             const SizedBox(width: 10),
@@ -381,6 +391,62 @@ class _TabPlayerScreenState extends ConsumerState<TabPlayerScreen>
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _transposeControl(int semitones, bool hasRecording) {
+    final bool active = semitones != 0;
+    final Color color = active ? const Color(0xFFA78BFA) : _textMuted;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+            color: active ? color.withValues(alpha: 0.5) : _borderSubtle),
+        color: active ? color.withValues(alpha: 0.12) : Colors.transparent,
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          GestureDetector(
+            onTap: () =>
+                ref.read(tabPlayerProvider.notifier).transposeDown(),
+            child: Icon(Icons.remove, size: 14, color: color),
+          ),
+          const SizedBox(width: 2),
+          GestureDetector(
+            onLongPress: () =>
+                ref.read(tabPlayerProvider.notifier).setTransposeSemitones(0),
+            child: Text(
+              semitones > 0
+                  ? 'T+$semitones'
+                  : semitones < 0
+                      ? 'T$semitones'
+                      : 'T0',
+              style: GoogleFonts.outfit(
+                fontSize: 11,
+                fontWeight: FontWeight.w900,
+                color: color,
+              ),
+            ),
+          ),
+          const SizedBox(width: 2),
+          GestureDetector(
+            onTap: () =>
+                ref.read(tabPlayerProvider.notifier).transposeUp(),
+            child: Icon(Icons.add, size: 14, color: color),
+          ),
+          if (hasRecording) ...[
+            const SizedBox(width: 4),
+            GestureDetector(
+              onTap: () =>
+                  ref.read(tabPlayerProvider.notifier).playTransposedRecording(),
+              child: Icon(Icons.play_circle_outline, size: 14, color: _accentCyan),
+            ),
+          ],
+        ],
       ),
     );
   }

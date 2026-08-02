@@ -14,7 +14,7 @@ import 'dart:typed_data';
 ///
 /// TODO (Future - v1.8.0 follow-ups): Suggest compatible scales for the
 /// detected chord progression; arpeggio detection (outline chord tones in
-/// lead playing). Pitch shifting / transposition planned for v1.9.0.
+/// lead playing). Pitch shifting / transposition implemented in v1.9.0.
 class ChordDetector {
   final int sampleRate;
   final double minFrequency;

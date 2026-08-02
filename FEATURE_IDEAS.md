@@ -22,8 +22,8 @@ Prioritized ideas for GuitarTuner beyond the current roadmap
 
 | # | Feature | Notes |
 |---|---------|-------|
-| 6 | **Pitch shifting (v1.9.0)** | Phase vocoder, ±12 semitones, tempo independent |
-| 7 | **Time-stretch / slow-practice loops** | Slower playback without pitch change |
+| 6 | **Pitch shifting (v1.9.0)** | ✅ DONE — phase vocoder, ±12 semitones; follow-up: real-time pitch shift monitoring |
+| 7 | **Time-stretch / slow-practice loops** | Slower playback without pitch change (phase vocoder foundation exists) |
 | 8 | **Noise reduction / denoise** | Clean up recordings before detection |
 | 9 | **Guitar amp & effect modeling** | Cab sim / distortion for playback tone |
 
@@ -51,8 +51,8 @@ Prioritized ideas for GuitarTuner beyond the current roadmap
 
 ## Suggested next picks
 
-1. **Pitch shifting (v1.9.0)** — the roadmap's recommended next feature; phase
-   vocoder for independent tempo/pitch control.
+1. **Lyric transcription (v2.0.0)** — the roadmap's next feature and the last
+   Moises-comparison item; needs Whisper / Speech-to-Text integration.
 2. **Practice feedback** — high value for users, builds on the recording and
    playback pipeline already in place.
 3. **PDF/MusicXML export** — unlocks sharing and interop with notation tools.

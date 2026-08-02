@@ -3,8 +3,9 @@
 /// Analyzes a monophonic passage's pitch class histogram to find the best
 /// matching musical scale (major, minor, pentatonic, blues, modes).
 ///
-/// TODO (Future - v1.9.0): Pitch shifting / key transposition
-/// TODO (Future - v2.0.0): Lyric transcription
+/// TODO (Future - v1.8.0 follow-ups): Progression-compatible scale
+/// suggestions; arpeggio detection (outline chord tones in lead playing).
+/// Pitch shifting implemented in v1.9.0.
 library;
 
 /// Musical scale types with their interval patterns (in semitones from tonic).

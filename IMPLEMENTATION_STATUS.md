@@ -1,14 +1,14 @@
 # GuitarTuner Implementation Status — Verification Report
 
 **Date:** 2026-08-02  
-**Version:** 1.8.0  
-**Last Commit:** `c293665`
+**Version:** 1.9.0  
+**Last Commit:** `075dee6`
 
 ---
 
 ## ✅ Verified: Completed Features
 
-### Moises AI-Style Feature Set (5 of 7 implemented)
+### Moises AI-Style Feature Set (6 of 7 implemented)
 
 | Feature | Version | Status | Files | Verification |
 |---------|---------|--------|-------|--------------|
@@ -17,9 +17,9 @@
 | **Chord Detection** | v1.6.0 | ✅ DONE | `chord_detector.dart`, `tab_player_state.dart`, `tab_player_screen.dart` | Multi-pitch detection, chord template matching, progression display |
 | **Smart Metronome** | v1.7.0 | ✅ DONE | `metronome_service.dart`, `tab_player_state.dart`, `tab_player_screen.dart` | Click track synced to tempo/time sig, subdivisions, accents, sound & volume control |
 | **Scale Detection** | v1.8.0 | ✅ DONE | `scale_detector.dart`, `tab_player_state.dart`, `tab_player_screen.dart` | 12 scale patterns, coverage + tonic emphasis matching, toolbar chip, fretboard scale-tone overlay |
+| **Pitch Control** | v1.9.0 | ✅ DONE | `pitch_shifter.dart`, `tab_player_state.dart`, `tab_player_screen.dart` | Phase vocoder transposition ±12 semitones, WAV encoder, tone synth, transposed tab/recording playback |
 | **BPM Control** | — | ✅ Already had | `tab_player_screen.dart` | Manual +/- buttons, tap tempo |
 | **Lyric Transcription** | v2.0.0 | ⏳ TODO | — | — |
-| **Pitch Shifting** | v1.9.0 | ⏳ TODO | — | — |
 
 ---
 
@@ -113,11 +113,11 @@ c0899be feat: automatic musical key detection with key signature display
 |---------|-----------|-------------|--------|
 | **Chord Detection** | ✅ Real-time | ✅ Post-recording | ✅ Implemented |
 | **Key Finder** | ✅ | ✅ Auto-detect | ✅ Implemented |
-| **Pitch Control** | ✅ Shift | ❌ | ⏳ v1.9.0 |
+| **Pitch Control** | ✅ Shift | ✅ Phase-vocoder ±12 st | ✅ Implemented v1.9.0 |
 | **BPM Controls** | ✅ Auto+Adjust | ✅ Auto+Adjust | ✅ Implemented |
 | **Lyric Transcrip.** | ✅ | ❌ | ⏳ v2.0.0 |
 | **Smart Metronome** | ✅ | ✅ | ✅ v1.7.0 |
-| **Scale Detection** | ⚠️ Limited | ❌ | ⏳ v1.8.0 |
+| **Scale Detection** | ⚠️ Limited | ✅ 12 patterns | ✅ Implemented v1.8.0 |
 | **Tablature** | ❌ | ✅ | ✅ Unique feature |
 | **Fretboard Visualizer** | ❌ | ✅ | ✅ Unique feature |
 
@@ -181,17 +181,17 @@ DetectedTempo DetectedChord DetectedKey  DetectedScale
 
 ### Next Features (Pick One)
 
-**Option 1: Pitch Shifting (v1.9.0) — 3-4 days**
-- Need: Phase vocoder implementation (no existing foundation)
-
-**Option 2: Lyric Transcription (v2.0.0) — 3-5 days**
+**Option 1: Lyric Transcription (v2.0.0) — 3-5 days**
 - Need: Whisper API / Speech-to-Text integration + vocal separation
 
-**Option 3: Scale Detection follow-ups (v1.8.0) — 1-2 days**
+**Option 2: Scale Detection follow-ups (v1.8.0) — 1-2 days**
 - Suggest compatible scales for detected chord progression
 - Arpeggio detection (outline chord tones in lead playing)
 
-**Recommended:** Start with **v1.9.0 Pitch Shifting** (phase vocoder, transposition)
+**Option 3: Pitch Shift follow-up (v1.9.0) — 1 day**
+- Real-time pitch shift monitoring during recording
+
+**Recommended:** Start with **v2.0.0 Lyric Transcription** (last Moises feature)
 
 ---
 

@@ -11,6 +11,7 @@ import '../services/tempo_detector.dart';
 import '../services/chord_detector.dart';
 import '../services/metronome_service.dart';
 import '../services/scale_detector.dart';
+import '../services/pitch_shifter.dart';
 
 enum NoteDuration {
   whole,
@@ -309,6 +310,8 @@ class TabPlayerState {
   final DetectedTempo? detectedTempo;
   final List<DetectedChord> detectedChords;
   final DetectedScale? detectedScale;
+  final int transposeSemitones;
+  final bool hasRecording;
   final bool isMetronomeEnabled;
   final MetronomeSubdivision metronomeSubdivision;
   final MetronomeSound metronomeSound;
@@ -332,6 +335,8 @@ class TabPlayerState {
     this.detectedTempo,
     this.detectedChords = const [],
     this.detectedScale,
+    this.transposeSemitones = 0,
+    this.hasRecording = false,
     this.isMetronomeEnabled = false,
     this.metronomeSubdivision = MetronomeSubdivision.quarter,
     this.metronomeSound = MetronomeSound.woodblock,
@@ -356,6 +361,8 @@ class TabPlayerState {
     DetectedTempo? detectedTempo,
     List<DetectedChord>? detectedChords,
     DetectedScale? detectedScale,
+    int? transposeSemitones,
+    bool? hasRecording,
     bool? isMetronomeEnabled,
     MetronomeSubdivision? metronomeSubdivision,
     MetronomeSound? metronomeSound,
@@ -379,6 +386,8 @@ class TabPlayerState {
       detectedTempo: detectedTempo ?? this.detectedTempo,
       detectedChords: detectedChords ?? this.detectedChords,
       detectedScale: detectedScale ?? this.detectedScale,
+      transposeSemitones: transposeSemitones ?? this.transposeSemitones,
+      hasRecording: hasRecording ?? this.hasRecording,
       isMetronomeEnabled: isMetronomeEnabled ?? this.isMetronomeEnabled,
       metronomeSubdivision: metronomeSubdivision ?? this.metronomeSubdivision,
       metronomeSound: metronomeSound ?? this.metronomeSound,
@@ -587,6 +596,7 @@ class TabPlayerNotifier extends StateNotifier<TabPlayerState> {
       state = state.copyWith(
         isRecording: false,
         isPlaying: false,
+        hasRecording: _recordedAudioSamples.isNotEmpty,
       );
     }
   }
@@ -870,6 +880,37 @@ class TabPlayerNotifier extends StateNotifier<TabPlayerState> {
     state = state.copyWith(detectedTempo: null);
   }
 
+  void setTransposeSemitones(int semitones) {
+    state = state.copyWith(transposeSemitones: semitones.clamp(-12, 12).toInt());
+  }
+
+  void transposeUp() {
+    state = state.copyWith(
+      transposeSemitones: (state.transposeSemitones + 1).clamp(-12, 12).toInt(),
+    );
+  }
+
+  void transposeDown() {
+    state = state.copyWith(
+      transposeSemitones: (state.transposeSemitones - 1).clamp(-12, 12).toInt(),
+    );
+  }
+
+  /// Play back the recorded audio transposed by the current semitone offset.
+  Future<void> playTransposedRecording() async {
+    if (_recordedAudioSamples.isEmpty) return;
+    final semitones = state.transposeSemitones.toDouble();
+    final samples = Float32List.fromList(_recordedAudioSamples);
+    final shifted = semitones == 0
+        ? samples
+        : PitchShifter().shiftPitch(samples, semitones);
+    final wav = buildWavBytes(shifted, sampleRate: 16000);
+    try {
+      await _synthAudioPlayer.stop();
+      await _synthAudioPlayer.play(BytesSource(wav));
+    } catch (_) {}
+  }
+
   /// Toggle the smart metronome click track.
   void toggleMetronome() {
     final bool newEnabled = !state.isMetronomeEnabled;
@@ -977,6 +1018,20 @@ class TabPlayerNotifier extends StateNotifier<TabPlayerState> {
   }
 
   void _playNoteSynthAudio(TabNote note) async {
+    if (state.transposeSemitones != 0) {
+      // Transposed playback: synthesize the note at the shifted frequency.
+      final frequency = _getFrequencyFromTabNote(note);
+      if (frequency == null) return;
+      final shiftedFreq =
+          frequency * math.pow(2, state.transposeSemitones / 12.0);
+      final wav = buildWavBytes(synthTone(shiftedFreq), sampleRate: 16000);
+      try {
+        await _synthAudioPlayer.stop();
+        await _synthAudioPlayer.play(BytesSource(wav));
+      } catch (_) {}
+      return;
+    }
+
     final stringNames = ['E4', 'B3', 'G3', 'D3', 'A2', 'E2'];
     if (note.stringIndex >= 1 && note.stringIndex <= 6) {
       final String soundFile = stringNames[note.stringIndex - 1];
@@ -1009,6 +1064,8 @@ class TabPlayerNotifier extends StateNotifier<TabPlayerState> {
       detectedScale: null,
       detectedTempo: null,
       detectedChords: const [],
+      transposeSemitones: 0,
+      hasRecording: false,
       playheadPosition: 0.0,
       totalMeasures: 4,
       measures: List.generate(4, (i) => TabMeasure(number: i + 1, notes: const [])),

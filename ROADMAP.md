@@ -26,6 +26,7 @@
 - [x] **Unified recording** — Single audio buffer feeds key + tempo + chord detection
 - [x] **Smart Metronome** (v1.7.0) — Click track synced to tempo/time signature with subdivisions, accents, sound & volume control
 - [x] **Scale Detection** (v1.8.0) — Scale patterns + matching for monophonic lead passages
+- [x] **Pitch Shifting / Key Transposition** (v1.9.0) — Phase vocoder transposition ±12 semitones
 
 ---
 
@@ -52,6 +53,18 @@
 - [x] `DetectedScale` model + `isInScale()` helper
 - [ ] Suggest compatible scales for detected chord progression
 - [ ] Arpeggio detection (outline chord tones in solo playing)
+
+---
+
+## v1.9.0 — Pitch Shifting / Key Transposition (DONE 2026-08-02)
+
+- [x] Phase vocoder for pitch shifting (independent of tempo)
+- [x] Transpose entire recording ±12 semitones
+- [x] Preserve formants (natural timbre, no "chipmunk" effect)
+- [x] `PitchShifter` service with `Fft`, `buildWavBytes`, `synthTone` in `lib/services/pitch_shifter.dart`
+- [x] `transposeSemitones` state + transposed tab/recording playback
+- [x] Transpose control in toolbar with long-press reset
+- [ ] Real-time pitch shift monitoring during recording
 
 ---
 
@@ -240,12 +253,6 @@
 ---
 
 ## TODO — Future Implementations (Not Started)
-
-### v1.9.0 — Pitch Shifting / Key Transposition
-- [ ] Phase vocoder for pitch shifting (independent of tempo)
-- [ ] Transpose entire recording ±12 semitones
-- [ ] Preserve formants (natural timbre, no "chipmunk" effect)
-- [ ] Real-time pitch shift monitoring during recording
 
 ### v2.0.0 — Lyric Transcription
 - [ ] Whisper API or Google Speech-to-Text integration

@@ -5,6 +5,7 @@ import 'package:guitartuner/services/audio_service.dart';
 import 'package:guitartuner/services/chord_detector.dart';
 import 'package:guitartuner/services/pitch_engine.dart';
 import 'package:guitartuner/services/metronome_service.dart';
+import 'package:guitartuner/services/pitch_shifter.dart';
 import 'package:guitartuner/services/scale_detector.dart';
 import 'package:guitartuner/services/tempo_detector.dart';
 import 'package:guitartuner/state/tab_player_state.dart';
@@ -368,6 +369,8 @@ void main() {
         detectedTempo: tempo,
         detectedChords: const [chord],
         detectedScale: scale,
+        transposeSemitones: 3,
+        hasRecording: true,
         isMetronomeEnabled: true,
         metronomeSubdivision: MetronomeSubdivision.eighth,
         metronomeSound: MetronomeSound.beep,
@@ -380,6 +383,8 @@ void main() {
       expect(updated.detectedChords.first.name, equals('Am'));
       expect(updated.detectedScale, same(scale));
       expect(updated.detectedScale!.displayName, equals('A Minor Pentatonic'));
+      expect(updated.transposeSemitones, equals(3));
+      expect(updated.hasRecording, isTrue);
       expect(updated.isMetronomeEnabled, isTrue);
       expect(updated.metronomeSubdivision, MetronomeSubdivision.eighth);
       expect(updated.metronomeSound, MetronomeSound.beep);
@@ -478,6 +483,98 @@ void main() {
       expect(scale.isInScale(4), isTrue);
       expect(scale.isInScale(7), isTrue);
       expect(scale.isInScale(3), isFalse); // C#
+    });
+  });
+
+  group('Pitch Shifter Unit Tests', () {
+    const sampleRate = 16000;
+
+    Float32List sineWave(double freq, int length) {
+      final out = Float32List(length);
+      for (int i = 0; i < length; i++) {
+        out[i] = math.sin(2 * math.pi * freq * i / sampleRate);
+      }
+      return out;
+    }
+
+    double estimateFreq(Float32List samples) {
+      final start = (samples.length * 0.2).floor();
+      final end = (samples.length * 0.8).floor();
+      var crossings = 0;
+      for (int i = start + 1; i < end; i++) {
+        final a = samples[i - 1];
+        final b = samples[i];
+        if ((a < 0 && b >= 0) || (a >= 0 && b < 0)) crossings++;
+      }
+      final duration = (end - start) / sampleRate;
+      return crossings / (2 * duration);
+    }
+
+    test('FFT finds the peak bin of a known sine', () {
+      const n = 1024;
+      const freq = 440.0;
+      final bin = (freq / sampleRate * n).round();
+      final fft = Fft(n);
+      for (int i = 0; i < n; i++) {
+        fft.real[i] = math.sin(2 * math.pi * freq * i / sampleRate);
+        fft.imag[i] = 0.0;
+      }
+      fft.forward();
+      var peak = 0;
+      var peakMag = -1.0;
+      for (int k = 0; k < n ~/ 2; k++) {
+        final mag = math.sqrt(fft.real[k] * fft.real[k] + fft.imag[k] * fft.imag[k]);
+        if (mag > peakMag) {
+          peakMag = mag;
+          peak = k;
+        }
+      }
+      expect(peak, equals(bin));
+    });
+
+    test('shiftPitch by 0 returns identical samples', () {
+      final input = sineWave(440.0, 8000);
+      final out = PitchShifter().shiftPitch(input, 0);
+      expect(out.length, equals(input.length));
+      for (int i = 0; i < input.length; i += 100) {
+        expect(out[i], closeTo(input[i], 1e-6));
+      }
+    });
+
+    test('shifts a 440Hz tone up 12 semitones to ~880Hz', () {
+      final input = sineWave(440.0, sampleRate); // 1 second
+      final out = PitchShifter().shiftPitch(input, 12);
+      expect(out.length, equals(input.length));
+      final est = estimateFreq(out);
+      expect(est, closeTo(880.0, 880.0 * 0.1));
+    });
+
+    test('shifts a 440Hz tone down 12 semitones to ~220Hz', () {
+      final input = sineWave(440.0, sampleRate);
+      final out = PitchShifter().shiftPitch(input, -12);
+      expect(out.length, equals(input.length));
+      final est = estimateFreq(out);
+      expect(est, closeTo(220.0, 220.0 * 0.12));
+    });
+
+    test('buildWavBytes emits a valid RIFF/WAVE header', () {
+      final wav = buildWavBytes(Float32List(100), sampleRate: 16000);
+      expect(wav.length, equals(44 + 100 * 2));
+      // RIFF header
+      expect(String.fromCharCodes(wav.sublist(0, 4)), equals('RIFF'));
+      expect(String.fromCharCodes(wav.sublist(8, 12)), equals('WAVE'));
+      expect(String.fromCharCodes(wav.sublist(12, 16)), equals('fmt '));
+      expect(String.fromCharCodes(wav.sublist(36, 40)), equals('data'));
+    });
+
+    test('synthTone produces a decaying non-silent buffer', () {
+      final tone = synthTone(440.0, sampleRate: 16000);
+      expect(tone.length, greaterThan(0));
+      var peak = 0.0;
+      for (final s in tone) {
+        peak = math.max(peak, s.abs());
+      }
+      expect(peak, greaterThan(0.01));
     });
   });
 }
